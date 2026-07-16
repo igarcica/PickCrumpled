@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+
+
+<!-- LINEAR MOVEMENT CONTROLLER -->
+  <include file="$(find iri_kinova_linear_movement)/launch/node.launch"> 
+    <arg name="respawn" value="true" />
+  </include> 
+
+<!-- IRI KINOVA DEMO -->
+  <include file="$(find pick_crumpled)/launch/node.launch"> </include>
+
+<!-- TIAGO PCL TUTORIAL -->
+  <include file="$(find vision_pick_crumpled)/launch/pickcrumpled.launch"> </include>
+
+  <node name="sense_deformation_class" pkg="pick_crumpled" type="sense_def_class.py" output="screen" />
+  <!--<remap from="/different_topic" to="/needed_topic"/> -->
+
+  <node name="predict_deformation_class" pkg="pick_crumpled" type="prediction_module.py" output="screen" />
+
+  <node name="placing_quality" pkg="pick_crumpled" type="placing_quality.py" output="screen" />
+
+  <node name="compute_new_cost" pkg="pick_crumpled" type="compute_cost_entry.py" output="screen" />
+
+  <!-- <include file="$(find pnp_planner)/launch/rosplan_tutotial10.launch"> </include> -->
+
+</launch>

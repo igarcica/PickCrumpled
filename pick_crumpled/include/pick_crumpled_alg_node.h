@@ -1,0 +1,416 @@
+// Copyright (C) 2010-2011 Institut de Robotica i Informatica Industrial, CSIC-UPC.
+// Author
+// All rights reserved.
+//
+// This file is part of iri-ros-pkg
+// iri-ros-pkg is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+// IMPORTANT NOTE: This code has been generated through a script from the
+// iri_ros_scripts. Please do NOT delete any comments to guarantee the correctness
+// of the scripts. ROS topics can be easly add by using those scripts. Please
+// refer to the IRI wiki page for more information:
+// http://wikiri.upc.es/index.php/Robotics_Lab
+
+#ifndef _pick_crumpled_alg_node_h_
+#define _pick_crumpled_alg_node_h_
+#define HOME_ACTION_IDENTIFIER 2
+
+#include <iri_base_algorithm/iri_base_algorithm.h>
+#include "pick_crumpled_alg.h"
+#include <kortex_driver/Pose.h>
+#include <kortex_driver/CartesianReferenceFrame.h>
+#include <kortex_driver/GripperMode.h>
+#include <kortex_driver/ActionEvent.h>
+#include <thread>
+#include <tf/transform_datatypes.h>
+
+// [publisher subscriber headers]
+#include <kortex_driver/TwistCommand.h>
+#include <kortex_driver/BaseCyclic_Feedback.h>
+#include <kortex_driver/ActionNotification.h>
+
+// [service client headers]
+#include <kortex_driver/ExecuteWaypointTrajectory.h>
+#include <kortex_driver/ValidateWaypointList.h>
+#include <kortex_driver/ExecuteAction.h>
+#include <kortex_driver/ReadAction.h>
+#include <kortex_driver/SendGripperCommand.h>
+#include <kortex_driver/SetCartesianReferenceFrame.h>
+#include <kortex_driver/Base_ClearFaults.h>
+#include <kortex_driver/OnNotificationActionTopic.h>
+#include <pick_crumpled/SenseDefClass.h> //Deformation clustering service
+#include <pick_crumpled/PredictDefClass.h> //Prediction deformation class service
+#include <pick_crumpled/GetPlacingQual.h> //Placing quality service
+#include <pick_crumpled/ComputeCostEntry.h> //Compute cost entry service
+#include <std_srvs/Empty.h> 
+//#include <rosplan_dispatch_msgs/DispatchService.h> //ROSPlan
+#include <rosplan_knowledge_msgs/KnowledgeUpdateServiceArray.h> //ROSPlan
+#include <rosplan_knowledge_msgs/KnowledgeUpdateService.h>
+#include <rosplan_knowledge_msgs/GetAttributeService.h>
+
+// [action server client headers]
+#include <actionlib/client/simple_action_client.h>
+#include <actionlib/client/terminal_state.h>
+#include <iri_kinova_linear_movement/kinova_linear_movementAction.h>
+#include <iri_action_server/iri_action_server.h>
+
+#include <tf/transform_listener.h>
+#include <tf/transform_broadcaster.h>
+#include <visualization_msgs/MarkerArray.h>
+#include <std_msgs/Float64.h>
+#include <std_msgs/String.h>
+#include <sensor_msgs/JointState.h>
+
+#include <ros/ros.h>
+#include <actionlib/server/simple_action_server.h>
+#include <pick_crumpled/activateSMAction.h>
+
+#include <fstream> //Log info to text file
+
+typedef enum {IDLE,
+              HOME,
+              UPDATE_INIT_ROSPLAN_KB, //borrar
+              PRE_PRE_DRAG,//borrar
+              PRE_DRAG,//borrar
+              DRAG,//borrar
+              UP_DRAG,//borrar
+              PRE_PRE_ROTATE,
+              PRE_ROTATE,
+              ROTATE_POS,
+              ROTATE,
+              UP_ROTATE,
+              POST_DRAG_ROTATE,
+              CHECK_CORNERS_POSE,
+              WAIT_CHECK_CORNERS_POSE,
+              PRE_GRASP,
+              GRASP,
+              WAIT_GRASP,
+              CLOSE_GRIPPER,
+              CLOSE_GRIPPER2,
+              POST_GRASP,
+              WAIT_POST_GRASP,
+              CHECK_DEFORMATION,
+              UPDATE_ROSPLAN_KB,
+              CHOOSE_PLACING,
+              PRE_PLACE_DIAGONAL,
+              PLACE_DIAGONAL1,
+              WAIT_PLACE_DIAGONAL1,
+              PLACE_DIAGONAL2,
+              WAIT_PLACE_DIAGONAL2,
+              PRE_PLACE_ROTATING,
+              PLACE_ROTATING,
+              PLACE22,
+              PLACE222,
+              PRE_PLACE_VERTICAL,
+              WAIT_PRE_PLACE_VERTICAL,
+              PLACE_VERTICAL,
+              WAIT_PLACE_VERTICAL,
+              OPEN_GRIPPER,
+              POST_PLACE,
+              WAIT_POST_PLACE,
+              HIGH_POSITION,
+              WAIT_HIGH_POSITION,
+              EXPERIMENTS1,
+              EXPERIMENTS2,
+              WAIT_EXPERIMENTS2,
+              ROTATE_POST_GRASP,
+              GO_TO_PLACE,
+              WAIT_GO_TO_PLACE,
+	            PILING,
+	            PILING2,
+              END_POSITION,
+              WAIT_END_POSITION,
+              GET_OBJECT_POSE,
+              CHECK_PLACING_QUAL,
+              END} pick_place_states_t;
+
+/**
+ * \brief IRI ROS Specific Algorithm Class
+ *
+ */
+class PickCrumpledAlgNode : public algorithm_base::IriBaseAlgorithm<PickCrumpledAlgorithm>
+{
+  private:
+    std::string robot_name;
+    std::atomic<int> last_action_notification_event{0};
+    kortex_driver::Pose tool_pose;
+    bool success = true;
+    //int state = 0;
+    bool start_demo=false;
+    bool start_experiments=false;
+    bool stop=false;
+    std::string placing_strategy;
+    pick_place_states_t state;
+    double close_gripper;
+    double open_gripper;
+    // bool piling;
+    double object_thickness_drag;
+    double object_thickness_rotate;
+    // std::vector<double>expected_pile_thickn;
+    double expected_pile_thickn;
+
+    std::vector<double> pre_grasp_corner;
+    kortex_driver::Pose home_pose;
+    kortex_driver::Pose pre_grasp_center;
+    kortex_driver::Pose grasping_point_garment;
+    kortex_driver::Pose rotating_pose_garment;
+    kortex_driver::Pose pre_rotating_pose_garment;
+    kortex_driver::Pose dragging_pose_garment;
+    kortex_driver::Pose grasp_pile_height_point;
+    kortex_driver::Pose pre_grasp_pile_height_point;
+    double end_dragging_pose;
+    float garment_width;     //para borrar
+    float garment_edge_size; //para borrar
+    float grasped_edge_size;
+    float not_grasped_edge_size;
+    float pile_height;
+    int cartesian_rf;
+    bool diagonal_place;
+    bool clear_faults(void);
+    bool set_cartesian_reference_frame(const int &cartesian_rf);
+    bool send_gripper_command(double value);
+    bool home_the_robot(void);
+    bool validate_waypoint(kortex_driver::Waypoint waypoint);
+    bool send_cartesian_pose(const kortex_driver::Pose &goal_pose);
+    bool wait_for_action_end_or_abort(void);
+    kortex_driver::Waypoint FillCartesianWaypoint(const kortex_driver::Pose &goal_pose, float blending_radius);
+    bool rotate_end_effector(float rotation);
+    bool send_joint_angles(void);
+
+    tf::TransformListener listener;
+    tf::TransformBroadcaster broadcaster;
+    ros::Timer handeye_frame_pub_timer;
+    void handeye_frame_pub(const ros::TimerEvent& event);
+    geometry_msgs::PoseStamped grasp_pose;
+    bool process_grasp_pointcloud;
+    bool get_garment_position;
+    bool get_garment_position2;
+    bool get_garment_angle;
+    bool get_pile_height;
+    bool get_garment_edge;
+    ros::Subscriber garment_pose_subscriber;
+    //ros::Subscriber garment_angle_subscriber;
+    ros::Subscriber garment_edge_subscriber;
+    ros::Subscriber corners_subscriber;
+    ros::Subscriber pile_height_marker_subscriber;
+    void check_worspaces(double garment_center);
+    //void garment_angle_callback(const std_msgs::Float64::ConstPtr& msg);
+    // void compute_grasp_angle(const std_msgs::Float64& msg);
+    void compute_grasp_angle(double grasping_angle);
+    //void select_grasp_point();
+    void corners_callback(const visualization_msgs::MarkerArray::ConstPtr& msg);
+    void pile_height_marker_callback(const visualization_msgs::Marker::ConstPtr& msg);
+    
+
+    void get_params(void);
+    kortex_driver::Pose pre_grasp_distance;
+
+    ros::Publisher garment_marker_publisher;
+    ros::Publisher grasp_marker_publisher;
+
+    // [publisher attributes]
+    ros::Publisher cartesian_velocity_publisher_;
+    kortex_driver::TwistCommand cartesian_velocity_TwistCommand_msg_;
+
+
+    // [subscriber attributes]
+    ros::Subscriber base_feedback_subscriber_;
+    void base_feedback_callback(const kortex_driver::BaseCyclic_Feedback::ConstPtr& msg);
+    pthread_mutex_t base_feedback_mutex_;
+    void base_feedback_mutex_enter(void);
+    void base_feedback_mutex_exit(void);
+
+    ros::Subscriber action_topic_subscriber_;
+    void action_topic_callback(const kortex_driver::ActionNotification::ConstPtr& msg);
+    pthread_mutex_t action_topic_mutex_;
+    void action_topic_mutex_enter(void);
+    void action_topic_mutex_exit(void);
+
+    //ROSPlan parsed plan topic
+    ros::Subscriber planner_topic_subscriber_;
+    void planner_topic_callback(const std_msgs::String::ConstPtr& msg);
+    // pthread_mutex_t planner_topic_mutex_;
+    // void action_topic_mutex_enter(void);
+    // void action_topic_mutex_exit(void);
+
+
+    // [service attributes]
+
+    // [client attributes]
+    ros::ServiceClient exec_wp_trajectory_client_;
+    kortex_driver::ExecuteWaypointTrajectory exec_wp_trajectory_srv_;
+
+    ros::ServiceClient validate_waypoint_list_client_;
+    kortex_driver::ValidateWaypointList validate_waypoint_list_srv_;
+
+    ros::ServiceClient base_execute_action_client_;
+    kortex_driver::ExecuteAction base_execute_action_srv_;
+
+    ros::ServiceClient base_read_action_client_;
+    kortex_driver::ReadAction base_read_action_srv_;
+
+    ros::ServiceClient send_gripper_cmd_client_;
+    kortex_driver::SendGripperCommand send_gripper_cmd_srv_;
+
+    ros::ServiceClient set_cartesian_rf_client_;
+    kortex_driver::SetCartesianReferenceFrame set_cartesian_rf_srv_;
+
+    ros::ServiceClient base_clear_faults_client_;
+    kortex_driver::Base_ClearFaults base_clear_faults_srv_;
+
+    ros::ServiceClient activate_publishing_client_;
+    kortex_driver::OnNotificationActionTopic activate_publishing_srv_;
+
+    //Check deformation
+    ros::ServiceClient sense_deformation_class_client_;
+    pick_crumpled::SenseDefClass sense_deformation_class_srv_;
+    std::string sensed_deformation_class;
+    ros::ServiceClient predict_deformation_class_client_;
+    pick_crumpled::PredictDefClass predict_deformation_class_srv_;
+    void predict_deformation_class(void); //Predicts deformation classes of current object in environment
+    std::string predicted_def_class_nearest_edge;
+    std::string predicted_def_class_second_nearest_edge;
+    std::vector<std::string> predicted_def_class_short_edge_v; //For saving in CSV
+    std::vector<std::string> predicted_def_class_long_edge_v; //For saving in CSV
+
+    //Check placing quality
+    ros::ServiceClient get_placing_quality_client_;
+    pick_crumpled::GetPlacingQual get_placing_quality_srv_;
+    float placing_quality;
+
+    //Planning cost computation
+    ros::ServiceClient compute_cost_entry_client_;
+    pick_crumpled::ComputeCostEntry compute_cost_entry_srv_;
+    void update_costs(void); //Update PDDL cost table based on placement quality
+    boost::array<int, 9> cost_table; //cloth-to-cloth cost table (for updating costs between piled objects in piles of more than 2 objects)
+
+    //ROSPlan services
+    ros::ServiceClient generate_problem_client_;
+    ros::ServiceClient get_plan_client_;
+    ros::ServiceClient parse_plan_client_;
+    ros::ServiceClient cancel_dispatch_client_;
+    std_srvs::Empty empty_srv_;
+    // ros::ServiceClient dispatch_plan_client_;
+    // rosplan_dispatch_msgs::DispatchService dispatch_plan_srv_;
+    ros::ServiceClient get_kb_state_client_;
+    rosplan_knowledge_msgs::GetAttributeService get_kb_state_srv_;
+    ros::ServiceClient update_kb_client_;
+    rosplan_knowledge_msgs::KnowledgeUpdateServiceArray update_kb_srv_;
+    // void testCallback(const boost::shared_ptr<const rosplan_dispatch_msgs::DispatchService::Response> &response);
+
+    // [action server attributes]
+    actionlib::SimpleActionServer<pick_crumpled::activateSMAction> as_; 
+    void PDDLgoalCB();
+    void PDDLpreemptCB();
+    void managePDDLactions(void);
+    rosplan_knowledge_msgs::KnowledgeUpdateServiceArray updateKB_init(void);
+    rosplan_knowledge_msgs::KnowledgeUpdateServiceArray updateKB_defstate(void);
+
+    // PDDL variables
+    bool plan_pddl_demo;
+    bool pddl_demo;
+    bool pddl_action_done;
+    bool init_plan;
+    bool drag;
+    bool rotate;
+    double rotation;
+    std::string nearest_edge;
+    std::string second_nearest_edge;
+    std::string workspace;
+    double stiffness;
+    double friction;
+    
+    int n_obj_pile; //current piled object
+    std::vector<std::string> objs_names, pddl_objs_names, objs_layers; //list of object names to pile
+    std::vector<double> short_edge_sizes, long_edge_sizes, objs_stiffness, objs_friction, objs_thickness; //stiffness, friction and thicnkess of objects to pile
+    void get_objects_to_pile(void); //Gets properties of the list of objects to pile, predicts deformation classes and updates KB of the planner (for initial plan)
+    
+
+    // [action client attributes]
+    actionlib::SimpleActionClient<iri_kinova_linear_movement::kinova_linear_movementAction> kinova_linear_move_client_;
+    iri_kinova_linear_movement::kinova_linear_movementGoal kinova_linear_move_goal_;
+    bool kinova_linear_moveMakeActionRequest(const geometry_msgs::Pose& desired_pose, const int& rf_frame, const float& max_vel);
+    void kinova_linear_moveDone(const actionlib::SimpleClientGoalState& state,  const iri_kinova_linear_movement::kinova_linear_movementResultConstPtr& result);
+    void kinova_linear_moveActive();
+    void kinova_linear_moveFeedback(const iri_kinova_linear_movement::kinova_linear_movementFeedbackConstPtr& feedback);
+
+    std::ofstream logfile, csvfile, planningfile;
+
+   /**
+    * \brief config variable
+    *
+    * This variable has all the driver parameters defined in the cfg config file.
+    * Is updated everytime function config_update() is called.
+    */
+    Config config_;
+  public:
+   /**
+    * \brief Constructor
+    *
+    * This constructor initializes specific class attributes and all ROS
+    * communications variables to enable message exchange.
+    */
+    PickCrumpledAlgNode(void);
+
+   /**
+    * \brief Destructor
+    *
+    * This destructor frees all necessary dynamic memory allocated within this
+    * this class.
+    */
+    ~PickCrumpledAlgNode(void);
+
+  protected:
+   /**
+    * \brief main node thread
+    *
+    * This is the main thread node function. Code written here will be executed
+    * in every node loop while the algorithm is on running state. Loop frequency
+    * can be tuned by modifying loop_rate attribute.
+    *
+    * Here data related to the process loop or to ROS topics (mainly data structs
+    * related to the MSG and SRV files) must be updated. ROS publisher objects
+    * must publish their data in this process. ROS client servers may also
+    * request data to the corresponding server topics.
+    */
+    void mainNodeThread(void);
+
+   /**
+    * \brief dynamic reconfigure server callback
+    *
+    * This method is called whenever a new configuration is received through
+    * the dynamic reconfigure. The derivated generic algorithm class must
+    * implement it.
+    *
+    * \param config an object with new configuration from all algorithm
+    *               parameters defined in the config file.
+    * \param level  integer referring the level in which the configuration
+    *               has been changed.
+    */
+    void node_config_update(Config &config, uint32_t level);
+
+   /**
+    * \brief node add diagnostics
+    *
+    * In this abstract function additional ROS diagnostics applied to the
+    * specific algorithms may be added.
+    */
+    void addNodeDiagnostics(void);
+
+    // [diagnostic functions]
+
+    // [test functions]
+};
+
+#endif
