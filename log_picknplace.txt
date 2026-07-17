@@ -265,3 +265,7 @@ Sending to: -> (0.45895, 0.274481, 0.210035, 179, 0, 90)
 State: ROTATE_POS
 Sending to: -> (0.45895, 0.274481, 0.160035, 179, 0, 90)
 Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+Closing pick_crumpled_alg_node

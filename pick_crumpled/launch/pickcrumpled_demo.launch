@@ -16,12 +16,5 @@
   <node name="sense_deformation_class" pkg="pick_crumpled" type="sense_def_class.py" output="screen" />
   <!--<remap from="/different_topic" to="/needed_topic"/> -->
 
-  <node name="predict_deformation_class" pkg="pick_crumpled" type="prediction_module.py" output="screen" />
-
-  <node name="placing_quality" pkg="pick_crumpled" type="placing_quality.py" output="screen" />
-
-  <node name="compute_new_cost" pkg="pick_crumpled" type="compute_cost_entry.py" output="screen" />
-
-  <!-- <include file="$(find pnp_planner)/launch/rosplan_tutotial10.launch"> </include> -->
 
 </launch>

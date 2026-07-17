@@ -199,6 +199,7 @@ class PickCrumpledAlgNode : public algorithm_base::IriBaseAlgorithm<PickCrumpled
     bool get_garment_angle;
     bool get_pile_height;
     bool get_garment_edge;
+    bool get_test_grasp_point; 
     ros::Subscriber garment_pose_subscriber;
     //ros::Subscriber garment_angle_subscriber;
     ros::Subscriber garment_edge_subscriber;
@@ -211,6 +212,7 @@ class PickCrumpledAlgNode : public algorithm_base::IriBaseAlgorithm<PickCrumpled
     //void select_grasp_point();
     void corners_callback(const visualization_msgs::MarkerArray::ConstPtr& msg);
     void pile_height_marker_callback(const visualization_msgs::Marker::ConstPtr& msg);
+    void PickCrumpledAlgNode::get_grasp_point(const geometry_msgs::PoseStamped grasp_pose);
     
 
     void get_params(void);
@@ -237,12 +239,6 @@ class PickCrumpledAlgNode : public algorithm_base::IriBaseAlgorithm<PickCrumpled
     void action_topic_mutex_enter(void);
     void action_topic_mutex_exit(void);
 
-    //ROSPlan parsed plan topic
-    ros::Subscriber planner_topic_subscriber_;
-    void planner_topic_callback(const std_msgs::String::ConstPtr& msg);
-    // pthread_mutex_t planner_topic_mutex_;
-    // void action_topic_mutex_enter(void);
-    // void action_topic_mutex_exit(void);
 
 
     // [service attributes]
@@ -272,50 +268,10 @@ class PickCrumpledAlgNode : public algorithm_base::IriBaseAlgorithm<PickCrumpled
     ros::ServiceClient activate_publishing_client_;
     kortex_driver::OnNotificationActionTopic activate_publishing_srv_;
 
-    //Check deformation
-    ros::ServiceClient sense_deformation_class_client_;
-    pick_crumpled::SenseDefClass sense_deformation_class_srv_;
-    std::string sensed_deformation_class;
-    ros::ServiceClient predict_deformation_class_client_;
-    pick_crumpled::PredictDefClass predict_deformation_class_srv_;
-    void predict_deformation_class(void); //Predicts deformation classes of current object in environment
-    std::string predicted_def_class_nearest_edge;
-    std::string predicted_def_class_second_nearest_edge;
-    std::vector<std::string> predicted_def_class_short_edge_v; //For saving in CSV
-    std::vector<std::string> predicted_def_class_long_edge_v; //For saving in CSV
 
-    //Check placing quality
-    ros::ServiceClient get_placing_quality_client_;
-    pick_crumpled::GetPlacingQual get_placing_quality_srv_;
-    float placing_quality;
-
-    //Planning cost computation
-    ros::ServiceClient compute_cost_entry_client_;
-    pick_crumpled::ComputeCostEntry compute_cost_entry_srv_;
-    void update_costs(void); //Update PDDL cost table based on placement quality
-    boost::array<int, 9> cost_table; //cloth-to-cloth cost table (for updating costs between piled objects in piles of more than 2 objects)
-
-    //ROSPlan services
-    ros::ServiceClient generate_problem_client_;
-    ros::ServiceClient get_plan_client_;
-    ros::ServiceClient parse_plan_client_;
-    ros::ServiceClient cancel_dispatch_client_;
-    std_srvs::Empty empty_srv_;
-    // ros::ServiceClient dispatch_plan_client_;
-    // rosplan_dispatch_msgs::DispatchService dispatch_plan_srv_;
-    ros::ServiceClient get_kb_state_client_;
-    rosplan_knowledge_msgs::GetAttributeService get_kb_state_srv_;
-    ros::ServiceClient update_kb_client_;
-    rosplan_knowledge_msgs::KnowledgeUpdateServiceArray update_kb_srv_;
-    // void testCallback(const boost::shared_ptr<const rosplan_dispatch_msgs::DispatchService::Response> &response);
 
     // [action server attributes]
     actionlib::SimpleActionServer<pick_crumpled::activateSMAction> as_; 
-    void PDDLgoalCB();
-    void PDDLpreemptCB();
-    void managePDDLactions(void);
-    rosplan_knowledge_msgs::KnowledgeUpdateServiceArray updateKB_init(void);
-    rosplan_knowledge_msgs::KnowledgeUpdateServiceArray updateKB_defstate(void);
 
     // PDDL variables
     bool plan_pddl_demo;
@@ -334,7 +290,6 @@ class PickCrumpledAlgNode : public algorithm_base::IriBaseAlgorithm<PickCrumpled
     int n_obj_pile; //current piled object
     std::vector<std::string> objs_names, pddl_objs_names, objs_layers; //list of object names to pile
     std::vector<double> short_edge_sizes, long_edge_sizes, objs_stiffness, objs_friction, objs_thickness; //stiffness, friction and thicnkess of objects to pile
-    void get_objects_to_pile(void); //Gets properties of the list of objects to pile, predicts deformation classes and updates KB of the planner (for initial plan)
     
 
     // [action client attributes]

@@ -27,13 +27,9 @@ find_package(catkin REQUIRED COMPONENTS rospy iri_base_algorithm iri_kinova_line
 # )
 
 ## Generate services in the 'srv' folder
-add_service_files(
-  FILES
-  SenseDefClass.srv
-  PredictDefClass.srv
-  GetPlacingQual.srv
-  ComputeCostEntry.srv
-)
+# add_service_files(
+#   FILES
+# )
 
 ## Generate actions in the 'action' folder
 add_action_files(
@@ -84,13 +80,9 @@ include_directories(${catkin_INCLUDE_DIRS})
 ## Declare a cpp executable
 add_executable(${PROJECT_NAME} src/pick_crumpled_alg.cpp src/pick_crumpled_alg_node.cpp)
 
-catkin_install_python(PROGRAMS
-    scripts/sense_def_class.py
-    scripts/prediction_module.py
-    scripts/placing_quality.py
-    scripts/compute_cost_entry.py
-    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
+# catkin_install_python(PROGRAMS
+#     DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+# )
 
 # ********************************************************************
 #                   Add the libraries

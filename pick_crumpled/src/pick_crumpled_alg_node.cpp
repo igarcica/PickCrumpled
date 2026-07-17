@@ -69,9 +69,6 @@ PickCrumpledAlgNode::PickCrumpledAlgNode(void) :
   this->action_topic_subscriber_ = this->private_node_handle_.subscribe("/" + this->robot_name  + "/action_topic", 1000, &PickCrumpledAlgNode::action_topic_callback, this);
   pthread_mutex_init(&this->action_topic_mutex_,NULL);
 
-  // ROSPlan Parsed plan topic
-  this->planner_topic_subscriber_ = this->private_node_handle_.subscribe("/rosplan_planner_interface/planner_output", 1000, &PickCrumpledAlgNode::planner_topic_callback, this);
-  // pthread_mutex_init(&this->planner_topic_mutex_,NULL);
 
   // [init services]
 
@@ -93,33 +90,9 @@ PickCrumpledAlgNode::PickCrumpledAlgNode(void) :
 
   activate_publishing_client_ = this->private_node_handle_.serviceClient<kortex_driver::OnNotificationActionTopic>("/" + this->robot_name + "/base/activate_publishing_of_action_topic");
 
-  //Deformation class services
-  sense_deformation_class_client_ = this->private_node_handle_.serviceClient<pick_crumpled::SenseDefClass>("/pick_crumpled/sense_def_class");
-  this->sensed_deformation_class = "A";
-  predict_deformation_class_client_ = this->private_node_handle_.serviceClient<pick_crumpled::PredictDefClass>("/pick_crumpled/predict_def_class");
-  this->predicted_def_class_nearest_edge = "A";
-  this->predicted_def_class_second_nearest_edge = "A";
-  get_placing_quality_client_ = this->private_node_handle_.serviceClient<pick_crumpled::GetPlacingQual>("/pick_crumpled/get_placing_quality");
-  float placing_quality=0;
 
-  //Planning cost computation service
-  compute_cost_entry_client_ = this->private_node_handle_.serviceClient<pick_crumpled::ComputeCostEntry>("/pick_crumpled/compute_new_cost");
-
-  //ROSPlan services
-  generate_problem_client_ = this->private_node_handle_.serviceClient<std_srvs::Empty>("/rosplan_problem_interface/problem_generation_server");
-  get_plan_client_ = this->private_node_handle_.serviceClient<std_srvs::Empty>("/rosplan_planner_interface/planning_server");
-  parse_plan_client_ = this->private_node_handle_.serviceClient<std_srvs::Empty>("/rosplan_parsing_interface/parse_plan");
-  // dispatch_plan_client_ = this->private_node_handle_.serviceClient<rosplan_dispatch_msgs::DispatchService>("/rosplan_plan_dispatcher/dispatch_plan");
-  get_kb_state_client_ = this->private_node_handle_.serviceClient<rosplan_knowledge_msgs::GetAttributeService>("/rosplan_knowledge_base/state/propositions");
-  update_kb_client_ = this->private_node_handle_.serviceClient<rosplan_knowledge_msgs::KnowledgeUpdateServiceArray>("/rosplan_knowledge_base/update_array");
-  cancel_dispatch_client_ = this->private_node_handle_.serviceClient<std_srvs::Empty>("/rosplan_plan_dispatcher/cancel_dispatch");
 
   // [init action servers]
-  //as_(nh_, name, boost::bind(&activateSMAction::executeCB, this, _1), false);
-  ROS_INFO("PickCrumpledAlgNode:: Activating action server grasp");
-  as_.registerGoalCallback(boost::bind(&PickCrumpledAlgNode::PDDLgoalCB, this));
-  as_.registerPreemptCallback(boost::bind(&PickCrumpledAlgNode::PDDLpreemptCB, this));
-  as_.start();
 
   // PDDL variables
   this->plan_pddl_demo=false; //Start SM calling ROSPlan to generate plan
@@ -134,16 +107,7 @@ PickCrumpledAlgNode::PickCrumpledAlgNode(void) :
   this->workspace="grws";
   this->stiffness=0.0;
   this->friction=0.0;
-  // this->cost_table = {{
-  //       7, 3, 4,
-  //       30, 14, 9,
-  //       30, 30, 30
-  //   }};
-    this->cost_table = {{
-        0, 0, 0,
-        0, 0, 0,
-        0, 0, 0
-    }};
+
 
   // [init action clients]
 
@@ -195,13 +159,6 @@ void PickCrumpledAlgNode::mainNodeThread(void)
   this->alg_.lock();
   ROS_DEBUG("PickCrumpledAlgNode::mainNodeThread");
 
-  //Manage PDDL actions
-  if(this->pddl_action_done)
-  {
-    //Manage errors (finished state of action: succeeded, aborted, failure, etc)
-    this->managePDDLactions(); //Notify PDDL action end
-  }
-
   if(this->state!=IDLE && this->stop)
   {
     ROS_INFO("Demo Pick n Place has stopped!");
@@ -223,7 +180,6 @@ void PickCrumpledAlgNode::mainNodeThread(void)
                    if (this->success)
                    {
                      this->state=PRE_PRE_ROTATE;
-                    //  this->logfile << "State: IDLE" << std::endl;
                      ros::Duration(0.5).sleep();
                      this->start_demo=false;
                    }else{
@@ -313,162 +269,6 @@ void PickCrumpledAlgNode::mainNodeThread(void)
                       }
       break;
 
-//       case ROTATE: ROS_INFO("PickCrumpledAlgNode: state ROTATE");
-//                   {
-//                     this->logfile << "State: ROTATE" << std::endl;
-//                     this->success &= rotate_end_effector(this->rotation);
-//                     if (this->success)
-//                     {
-//                       ROS_INFO("Success ROTATE");
-//                       this->state=UP_ROTATE;
-//                       ros::Duration(0.5).sleep();
-//                     }else{
-//                       ROS_WARN("PickCrumpledAlgNode: Could not rotate!");
-//                       this->state=IDLE;
-//                     }
-//                   }
-//       break;
-
-//       case UP_ROTATE: ROS_DEBUG("PickCrumpledAlgNode: state UP_ROTATE");
-//                       {
-//                         ROS_INFO("PickCrumpledSM: Sending to DRAG_ROTATE position.");
-//                         this->logfile << "State: UP_ROTATE" << std::endl;
-//                         this->rotating_pose_garment.z = 0.2; //Raise arm before going home
-//                         // std::cout << "\033[1;36m UP_ROTATE: -> \033[1;36m  x: " << this->rotating_pose_garment.x << ", y: " << this->rotating_pose_garment.y << ", z: " << this->rotating_pose_garment.z << std::endl;
-//                         this->success &= send_cartesian_pose(this->rotating_pose_garment);
-//                         if (this->success)
-//                         {
-//                           ROS_INFO("Success UP ROTATE");
-//                           this->rotate=false;
-//                           // if(this->pddl_demo)
-//                           // {
-//                           //   this->pddl_action_done=true; // End PDDL action
-//                           //   this->state=IDLE;
-//                           // }
-//                           // else //Continue SM - go to home pose and end
-//                           //   this->state=POST_DRAG_ROTATE;
-//                           this->state=POST_DRAG_ROTATE;
-//                           ros::Duration(0.5).sleep();
-//                         }
-//                         else
-//                           this->state=END;
-//                       }
-//       break;
-
-//       case POST_DRAG_ROTATE: ROS_INFO("PickCrumpledAlgNode: state POST_DRAG_ROTATE");
-//                             {
-//                               this->logfile << "State: POST_DRAG_ROTATE" << std::endl;
-//                               this->success &= home_the_robot(); // Move the robot to the Home position with an Action
-//                               if (this->success)
-//                               {
-//                                 ROS_INFO("Success POST DRAG ROTATE");
-//                                 if(this->pddl_demo)
-//                                   this->pddl_action_done=true; // End PDDL action
-//                                 this->state=IDLE;
-//                                 ros::Duration(0.5).sleep();
-//                               }else
-//                                 this->state=END;
-//                             }
-//       break;
-
-//       // High position to see garment
-//       case CHECK_CORNERS_POSE: ROS_INFO("PickCrumpledAlgNode: state CHECK CORNERS POSE");
-//                           {
-//                             this->logfile << "State: CHECK_CORNERS_POSE" << std::endl;
-//                             //Higher angular positions: 4, 9, 177, 269, 9, 9, 80
-//                             //Higher cartesian pose: 66.5, 0.7, 64, 90.7, 5.9, 91.5
-//                             geometry_msgs::Pose desired_pose;
-//                             desired_pose.position.x = tool_pose.x;
-//                             desired_pose.position.y = tool_pose.y;
-//                             desired_pose.position.z = 0.6;
-//                             // std::cout << "\033[1;36m Going to high pose: -> \033[1;36m  x: " << desired_pose.position.x << ", y: " <<  desired_pose.position.y << ", z: " << desired_pose.position.z << std::endl;
-//                             kinova_linear_moveMakeActionRequest(desired_pose, kortex_driver::CartesianReferenceFrame::CARTESIAN_REFERENCE_FRAME_MIXED, 0.08);
-//                             this->state=WAIT_CHECK_CORNERS_POSE;
-//                           }
-//       break;
-
-//       case WAIT_CHECK_CORNERS_POSE: ROS_DEBUG("PickCrumpledAlgNode: state WAIT CHECK CORNERS POSE");
-//                                {
-//                                  actionlib::SimpleClientGoalState kinova_linear_move_state(actionlib::SimpleClientGoalState::PENDING);
-//                                  // to get the state of the current goal
-//                                  this->alg_.unlock();
-//                                  kinova_linear_move_state=kinova_linear_move_client_.getState(); // Possible state values are: PENDING,ACTIVE,RECALLED,REJECTED,PREEMPTED,ABORTED,SUCCEEDED and LOST
-//                                  this->alg_.lock();
-//                                  ROS_DEBUG("PickCrumpledAlgNode::mainNodeThread: kinova_linear_move_client_ action state = %s", kinova_linear_move_state.toString().c_str());;
-//                                  if(kinova_linear_move_state==actionlib::SimpleClientGoalState::ABORTED or kinova_linear_move_state==actionlib::SimpleClientGoalState::LOST)
-//                                  {
-//                                    ROS_INFO("Action aborted!");
-//                                    this->state=IDLE;
-//                                  }
-//                                  else if(kinova_linear_move_state==actionlib::SimpleClientGoalState::SUCCEEDED)
-//                                  {
-//                                    this->state=IDLE;
-//                                   //  this->success = true;
-//                                    if(this->pddl_demo)
-//                                      this->pddl_action_done=true; // End PDDL action
-//                                    ros::Duration(0.5).sleep();
-//                                  }
-//                                }
-//       break;
-
-// /////// GRASP actions
-//       // PRE-GRASP POSITION
-//       case PRE_GRASP: ROS_DEBUG("PickCrumpledAlgNode: state PRE GRASP");
-//                       {
-//                         ROS_INFO("PickCrumpledSM: Sending to PRE-grasp position.");
-//                         this->logfile << "State: PRE_GRASP" << std::endl;
-//                         // std::cout << "\033[1;36m PRE-GRASP: -> \033[1;36m  x: " << this->grasping_point_garment.x << ", y: " << this->grasping_point_garment.y << ", z: " << this->grasping_point_garment.z << std::endl;
-//                         this->success &= send_cartesian_pose(this->grasping_point_garment);
-//                         if (this->success)
-//                         {
-//                           ROS_INFO("Success PRE GRASP");
-//                           this->state=GRASP;
-//                           ros::Duration(0.5).sleep();
-//                         }
-//                       }
-//       break;
-
-//       // GRASP POSITION
-//       case GRASP: ROS_DEBUG("PickCrumpledAlgNode: state GRASP");
-//                   {
-//                     ROS_INFO("PickCrumpledSM: Sending to GRASP position.");
-//                     this->logfile << "State: GRASP" << std::endl;
-//                     geometry_msgs::Pose desired_pose;
-//                     std::cout << this->pre_grasp_distance.x << std::endl;
-//                     std::cout << this->pre_grasp_distance.y << std::endl;
-//                     desired_pose.position.x = tool_pose.x + this->pre_grasp_distance.x;  // + 0.05;
-//                     desired_pose.position.y = tool_pose.y + this->pre_grasp_distance.y;
-//                     desired_pose.position.z = tool_pose.z;
-//                     // std::cout << "\033[1;36m GRASP: -> \033[1;36m  x: " << desired_pose.position.x << ", y: " <<  desired_pose.position.y << ", z: " << desired_pose.position.z << std::endl;
-//                     kinova_linear_moveMakeActionRequest(desired_pose, kortex_driver::CartesianReferenceFrame::CARTESIAN_REFERENCE_FRAME_MIXED, 0.1);
-//                     this->state=WAIT_GRASP;
-//                   }
-//       break;
-
-//       case WAIT_GRASP: ROS_DEBUG("PickCrumpledAlgNode: state WAIT GRASP");
-//                        {
-//                          actionlib::SimpleClientGoalState kinova_linear_move_state(actionlib::SimpleClientGoalState::PENDING);
-//                          // to get the state of the current goal
-//                          this->alg_.unlock();
-//                          kinova_linear_move_state=kinova_linear_move_client_.getState(); // Possible state values are: PENDING,ACTIVE,RECALLED,REJECTED,PREEMPTED,ABORTED,SUCCEEDED and LOST
-//                          this->alg_.lock();
-
-//                          ROS_DEBUG("PickCrumpledAlgNode::mainNodeThread: kinova_linear_move_client_ action state = %s", kinova_linear_move_state.toString().c_str());;
-// 			                   // falta un timeout (state LOST)
-//                          if(kinova_linear_move_state==actionlib::SimpleClientGoalState::ABORTED or kinova_linear_move_state==actionlib::SimpleClientGoalState::LOST)
-//                          {
-//                            ROS_INFO("Action aborted!");
-//                            this->state=END; //
-//                          }
-//                          else if(kinova_linear_move_state==actionlib::SimpleClientGoalState::SUCCEEDED)
-//                          {
-//                            this->success = true;
-//                            this->state=CLOSE_GRIPPER;
-//                            ros::Duration(0.5).sleep();
-//                          }
-//                        }
-//       break;
-
 
       // CLOSE GRIPPER
       case CLOSE_GRIPPER: ROS_DEBUG("PickCrumpledAlgNode: state CLOSE GRIPPER");
@@ -534,595 +334,6 @@ void PickCrumpledAlgNode::mainNodeThread(void)
                                 ros::Duration(0.5).sleep();
                               }
                             }
-      break;
-
-/////// CHECK DEFORMATION actions
-      case EXPERIMENTS1: ROS_DEBUG("PickCrumpledAlgNode: state EXPERIMENTS1");
-                         {
-                           this->logfile << "State: EXPERIMENTS1" << std::endl;
-                          // ROS_INFO("Experiments1");
-                          // this->pre_grasp_center.x = 0.5;
-                          // this->pre_grasp_center.y = -0.28;
-                          // this->pre_grasp_center.z = 0.30;
-                          // this->pre_grasp_center.theta_x = 0.0; //0.0;
-                          // this->pre_grasp_center.theta_y = -90; //-125.5;
-                          // this->pre_grasp_center.theta_z = 180; //180;
-                          // std::cout << "\033[1;36m Going to: -> \033[1;36m  x: " << this->pre_grasp_center.x << ", y: " << this-> pre_grasp_center.y << ", z: " << this->pre_grasp_center.z << std::endl;
-                          // this->success &= send_cartesian_pose(this->pre_grasp_center);
-                          this->success &= send_joint_angles();
-                          if (this->success)
-                          {
-                            //ROS_INFO("Success ROTATE EXPERIMENTS");
-                            this->state=EXPERIMENTS2;
-                            //this->state=GO_TO_PLACE;
-                            ros::Duration(0.5).sleep();
-                          }
-                         }
-      break;
-
-      case EXPERIMENTS2: ROS_DEBUG("PickCrumpledAlgNode: state EXPERIMENTS2");
-                         {
-                           ROS_INFO("PickCrumpledSM: Sending to CHECK DEFORMATION position.");
-                           this->logfile << "State: EXPERIMENTS2" << std::endl;
-                           geometry_msgs::Pose desired_pose;
-                           desired_pose.position.x = 0.28;//0.32; //0.28;
-                           desired_pose.position.y = tool_pose.y;
-                           desired_pose.position.z = 0.4; //tool_pose.z;
-                          //  std::cout << "\033[1;36m Check def.: -> \033[1;36m  x: " << desired_pose.position.x << ", y: " <<  desired_pose.position.y << ", z: " << desired_pose.position.z << std::endl;
-                           kinova_linear_moveMakeActionRequest(desired_pose, kortex_driver::CartesianReferenceFrame::CARTESIAN_REFERENCE_FRAME_MIXED, 0.1);
-                           this->state=WAIT_EXPERIMENTS2;
-			                   }
-
-      break;
-
-      case WAIT_EXPERIMENTS2: ROS_DEBUG("PickCrumpledAlgNode: state WAIT EXPERIMENTS2");
-                              {
-                                actionlib::SimpleClientGoalState kinova_linear_move_state(actionlib::SimpleClientGoalState::PENDING);
-                                // to get the state of the current goal
-                                this->alg_.unlock();
-                                kinova_linear_move_state=kinova_linear_move_client_.getState(); // Possible state values are: PENDING,ACTIVE,RECALLED,REJECTED,PREEMPTED,ABORTED,SUCCEEDED and LOST
-                                this->alg_.lock();
-                                ROS_DEBUG("PickCrumpledAlgNode::mainNodeThread: kinova_linear_move_client_ action state = %s", kinova_linear_move_state.toString().c_str());;
-                                if(kinova_linear_move_state==actionlib::SimpleClientGoalState::ABORTED or kinova_linear_move_state==actionlib::SimpleClientGoalState::LOST)
-                                {
-                                  ROS_INFO("Action aborted!");
-                                  this->state=END;
-                                }
-                                else if(kinova_linear_move_state==actionlib::SimpleClientGoalState::SUCCEEDED)
-                                {
-                                  this->success = true;
-                                  /*if(this->pddl_demo)
-                                  {
-                                    this->pddl_action_done=true; // End PDDL action
-                                    this->state=IDLE;
-                                  }
-                                  else // Continue SM
-                                    this->state=CLOSE_GRIPPER2;*/
-                                  this->state=CHECK_DEFORMATION;
-                                  ros::Duration(0.5).sleep();
-                                }
-                              }
-      break;
-
-      case CHECK_DEFORMATION: ROS_INFO("PickCrumpledAlgNode: state CHECK DEFORMATION");
-                              {
-                                // this->logfile << "State: CHECK_DEFORMATION" << std::endl;
-                                this->logfile << "--- DEFORMATION CLASS ESTIMATION ---" << std::endl;
-                                this->logfile << "Sensing def class parameters --> object name: " << this->objs_names[this->n_obj_pile] << ", layers: " << this->objs_layers[this->n_obj_pile] << ", nearest_edge: " << this->nearest_edge << std::endl;
-                                sense_deformation_class_srv_.request.object_name = this->objs_names[this->n_obj_pile]; //obtain form reconfigure
-                                sense_deformation_class_srv_.request.layers = this->objs_layers[this->n_obj_pile];
-                                sense_deformation_class_srv_.request.grasped_edge = this->nearest_edge;
-                                if(sense_deformation_class_client_.call(sense_deformation_class_srv_))
-                                {
-                                  this->sensed_deformation_class = sense_deformation_class_srv_.response.sensed_def_class;
-                                  ROS_INFO("PickCrumpled: Sensed deformation class: %s", this->sensed_deformation_class.c_str());
-                                  this->logfile << "======= Sensed deformation class: " << this->sensed_deformation_class.c_str() << std::endl;
-                                  if(this->pddl_demo)
-                                  {
-                                    // this->pddl_action_done=true; // End PDDL action
-                                    // this->state=IDLE;
-                                    this->state=UPDATE_ROSPLAN_KB;
-                                  }
-                                  else // Continue SM
-                                    this->state=CHOOSE_PLACING; 
-                                }else{
-                                  ROS_WARN("PickCrumpledAlgNode (CHECK DEFORMATION): Unable to sense deformation class");
-                                  this->state=END;
-                                }
-                              }
-      break;
-      
-      //State for ROSPlan
-      case UPDATE_ROSPLAN_KB: ROS_INFO("PickCrumpledAlgNode: state UPDATE ROSPLAN KB");
-                              {
-                                this->logfile << "State: UPDATE_ROSPLAN_KB" << std::endl;
-                                //Update deformation class in ROSPlan knowledge base to replan accordingly
-                                update_kb_srv_ = updateKB_defstate();
-                                if(update_kb_client_.call(update_kb_srv_))
-                                {
-                                  ROS_INFO("PickCrumpledAlgNode: Knowledge Base updated!");
-                                  //Replan with sensed class (to select placing strategy) this->state=IDLE; this->plan_pddl_demo=true;
-                                  //Can it go to a REPLAN state and not abort current plan?
-                                  ROS_WARN("PickCrumpledAlgNode: Canceling dispatch plan");
-                                  // this->pddl_action_done=true; // End PDDL action
-                                  as_.setPreempted();
-                                  this->plan_pddl_demo=true;
-                                  this->planningfile << "---UPDATE SENSED DEFORMATION CLASS (UPDATE ROSPLAN KB)--- \n" << std::endl;
-                                  this->state=IDLE;
-                                }else{
-                                  ROS_WARN("PickCrumpledAlgNode: Knowledge Base NOT updated!");
-                                  this->state=END;
-                                }
-                              }
-      break;
-                                                                
-
-      /*
-      // ROTATE POST-GRASP POSITION - CARTESIAN
-      // Sets a position under the camera with an horizontal orientation to check the deformation
-      case ROTATE_POST_GRASP: ROS_DEBUG("PickCrumpledAlgNode: state ROTATE POST GRASP");
-                              ROS_INFO("Rotating post-grasp position.");
-                              this->pre_grasp_center.x = 0.4;
-                              this->pre_grasp_center.y = -0.28;
-                              this->pre_grasp_center.z = 0.30;
-                              this->pre_grasp_center.theta_x = 0.0; //0.0;
-                              this->pre_grasp_center.theta_y = -90; //-125.5;
-                              this->pre_grasp_center.theta_z = 180; //180;
-                              std::cout << "\033[1;36m Groing to: -> \033[1;36m  x: " << this->pre_grasp_center.x << ", y: " << this-> pre_grasp_center.y << ", z: " << this->pre_grasp_center.z << std::endl;
-                              this->success &= send_cartesian_pose(this->pre_grasp_center);
-                              if (this->success)
-                              {
-                                ROS_INFO("Success ROTATE POST GRASP");
-                                this->state=CLOSE_GRIPPER2;
-                                //this->state=GO_TO_PLACE;
-                                ros::Duration(0.5).sleep();
-                              }
-      break;
-      */
-      /*
-      case CLOSE_GRIPPER2: ROS_DEBUG("PickCrumpledAlgNode: state CLOSE GRIPPER2");
-			                     if(config_.close)
-			                     {
-                             ROS_DEBUG("PickCrumpledAlgNode: Closing the gripper");
-                             this->success &= send_gripper_command(this->close_gripper);
-                             if (this->success)
-                             {
-                               this->state=WAIT_GO_TO_PLACE;
-                               ros::Duration(0.5).sleep();
-                             }
-			                     }
-			                     else
-			                       this->state=CLOSE_GRIPPER2;
-      break;
-
-      // PRE-PLACE POSITION
-      // Go to a fixed pre place position
-      case GO_TO_PLACE: ROS_DEBUG("PickCrumpledAlgNode: state GO TO PLACE");
-                        if(config_.ok)
-                        {
-                          ROS_INFO("PickCrumpledSM: Sending to PRE-place position.");
-                          this->logfile << "State: GO_TO_PLACE" << std::endl;
-                          //first=false;
-                          geometry_msgs::Pose desired_pose;
-                          desired_pose.position.x = 0.6;//// //0.8;
-                          desired_pose.position.y = -0.28;//////-0.1;//-0.28//0.0; //-0.12; //-this->garment_width/2;
-                          desired_pose.position.z = tool_pose.z;
-                          // std::cout << "\033[1;36m PRE-PLACE: -> \033[1;36m  x: " << desired_pose.position.x << ", y: " <<  desired_pose.position.y << ", z: " << desired_pose.position.z << std::endl;
-                          kinova_linear_moveMakeActionRequest(desired_pose, kortex_driver::CartesianReferenceFrame::CARTESIAN_REFERENCE_FRAME_MIXED, 0.08);
-                          config_.ok=false;
-                          this->state=WAIT_GO_TO_PLACE;
-                        }
-                        else
-                          this->state=GO_TO_PLACE;
-      break;
-
-      // Waits until it reaches the pre place position with linear movement controller
-      case WAIT_GO_TO_PLACE: ROS_DEBUG("PickCrumpledAlgNode: state WAIT GO TO PLACE");
-                             {
-                              actionlib::SimpleClientGoalState kinova_linear_move_state(actionlib::SimpleClientGoalState::PENDING);
-                              // to get the state of the current goal
-                              this->alg_.unlock();
-                              kinova_linear_move_state=kinova_linear_move_client_.getState(); // Possible state values are: PENDING,ACTIVE,RECALLED,REJECTED,PREEMPTED,ABORTED,SUCCEEDED and LOST
-                              this->alg_.lock();
-                              ROS_DEBUG("PickCrumpledAlgNode::mainNodeThread: kinova_linear_move_client_ action state = %s", kinova_linear_move_state.toString().c_str());;
-                              if(kinova_linear_move_state==actionlib::SimpleClientGoalState::ABORTED or kinova_linear_move_state==actionlib::SimpleClientGoalState::LOST)
-                              {
-                                ROS_INFO("Action aborted!");
-                                this->state=END;
-                              }
-                              else if(kinova_linear_move_state==actionlib::SimpleClientGoalState::SUCCEEDED and config_.ok)
-				                        this->state=CHOOSE_PLACING;
-                             }
-      break;
-      */
-
-/////// PLACE actions
-      case CHOOSE_PLACING: ROS_DEBUG("PickPlacceAlgNode: state CHOOSE PLACING");
-                           {
-                            if(config_.ok)
-                            {
-                             this->logfile << "State: CHOOSE_PLACING" << std::endl;
-                             this->success = true;
-                             if(this->placing_strategy=="placediag")
-                               this->state=PRE_PLACE_DIAGONAL;
-                             else if(this->placing_strategy=="placevert")
-			                         this->state=PRE_PLACE_VERTICAL;
-			                       else if(this->placing_strategy=="placerot")
-                               this->state=PRE_PLACE_ROTATING;
-                            //  else if(this->placing_strategy=="placedyn")
-                            //    this->state=OPEN_GRIPPER;
-                             ros::Duration(0.5).sleep();
-                             config_.ok=false;
-                            }else
-                              this->state=CHOOSE_PLACING;
-                           }
-	    break;
-      
-  // PLACE DIAGONAL !
-
-      // ROTATE PRE-PLACE POSITION - CARTESIAN
-      // Sets a slight rotation before the diagonal placement
-      case PRE_PLACE_DIAGONAL: ROS_DEBUG("PickCrumpledAlgNode: state PRE PLACE DIAGONAL");
-                               {
-                                 ROS_INFO("PRE_PLACE_DIAGONAL - Rotating PRE-place position.");
-                                 
-                                 this->pre_grasp_center.x = this->garment_edge_size + 0.12; //tool_pose.x;//+this->garment_edge_size;
-                                 this->pre_grasp_center.y = -0.28; //tool_pose.y;
-                                 this->pre_grasp_center.z = this->garment_edge_size;// + 0.05;//*1.2; //Check;
-                                 this->pre_grasp_center.theta_x = 0.0;
-                                 this->pre_grasp_center.theta_y = -125.5;
-                                 this->pre_grasp_center.theta_z = 180;
-                                //  std::cout << "\033[1;36m PRE-PLACE: -> \033[1;36m  x: " << this->pre_grasp_center.x << ", y: " << this-> pre_grasp_center.y << ", z: " << this->pre_grasp_center.z << std::endl;
-                                 this->logfile << "State: PRE_PLACE_DIAGONAL - Pose -->  x: " << this->pre_grasp_center.x << " / y: -0.28 / z: " << this->pre_grasp_center.z << std::endl;
-                                 this->success &= send_cartesian_pose(this->pre_grasp_center);
-                                 if (this->success)
-                                 {
-                                   ROS_INFO("Success PRE PLACE DIAGONAL");
-                                   this->state=PLACE_DIAGONAL1;
-                                  ros::Duration(0.5).sleep();
-                                 }
-                               }
-      break;
-
-      // PLACE POSITION
-      // Sets the placing position so it performs a diagonal movement
-      case PLACE_DIAGONAL1: ROS_DEBUG("PickCrumpledAlgNode: state PLACE DIAGONAL");
-                            {
-                               ROS_INFO("PickCrumpledSM: Sending to PLACE position.");
-                               geometry_msgs::Pose desired_pose;
-                               if(this->n_obj_pile==0)
-                                 desired_pose.position.x = (this->garment_edge_size + 0.12)/2; //If first object place as always
-                               else
-                                 desired_pose.position.x = ((this->garment_edge_size + 0.12)/2) +0.02; //If second object place a bit further due to friction
-                              //  desired_pose.position.x = (this->garment_edge_size + 0.12)/2; //tool_pose.x-this->garment_edge_size;///1.5; //Check
-                               desired_pose.position.y = -0.28; //tool_pose.y; //-0.3;
-                               desired_pose.position.z = this->garment_edge_size/2 + this->pile_height + config_.table_height + 0.055;
-                               // std::cout << "\033[1;36m PLACE: -> \033[1;36m  x: " << desired_pose.position.x << ", y: " <<  desired_pose.position.y << ", z: " << desired_pose.position.z << std::endl;
-                               this->logfile << "State: PLACE_DIAGONAL1 - Pose --> x: " << desired_pose.position.x << " / y: -0.28 / z: " << desired_pose.position.z << std::endl;
-                               kinova_linear_moveMakeActionRequest(desired_pose, kortex_driver::CartesianReferenceFrame::CARTESIAN_REFERENCE_FRAME_MIXED, 0.08);
-                               this->state=WAIT_PLACE_DIAGONAL1;
-                            }
-      break;
-
-      // Wait until it ends the diagonal movement (with linear movement controller)
-      case WAIT_PLACE_DIAGONAL1: ROS_DEBUG("PickCrumpledAlgNode: state WAIT PLACE DIAGONAL");
-                                {
-                                  actionlib::SimpleClientGoalState kinova_linear_move_state(actionlib::SimpleClientGoalState::PENDING);
-                                  // to get the state of the current goal
-                                  this->alg_.unlock();
-                                  kinova_linear_move_state=kinova_linear_move_client_.getState(); // Possible state values are: PENDING,ACTIVE,RECALLED,REJECTED,PREEMPTED,ABORTED,SUCCEEDED and LOST
-                                  this->alg_.lock();
-
-                                  ROS_DEBUG("PickCrumpledAlgNode::mainNodeThread: kinova_linear_move_client_ action state = %s", kinova_linear_move_state.toString().c_str());;
-                                  if(kinova_linear_move_state==actionlib::SimpleClientGoalState::ABORTED or kinova_linear_move_state==actionlib::SimpleClientGoalState::LOST)
-                                  {
-                                    ROS_INFO("Action aborted!");
-                                    this->state=END;
-                                  }
-                                  else if(kinova_linear_move_state==actionlib::SimpleClientGoalState::SUCCEEDED)
-                                  {
-                                    this->success = true;
-                                    this->state=PLACE_DIAGONAL2;
-                                    ros::Duration(0.5).sleep();
-                                  }
-                                }
-      break;
-
-      case PLACE_DIAGONAL2: ROS_DEBUG("PickCrumpledAlgNode: state PLACE DIAGONAL");
-                           {
-                               ROS_INFO("PickCrumpledSM: Sending to PLACE position.");
-                               
-                               geometry_msgs::Pose desired_pose;
-                               if(this->n_obj_pile==0)
-                                 desired_pose.position.x = 0.12; //If first object place as always
-                               else
-                                 desired_pose.position.x = 0.14;
-                              //  desired_pose.position.x = 0.12;
-                               desired_pose.position.y = -0.28; //tool_pose.y;
-                               desired_pose.position.z = this->pile_height +  config_.table_height + 0.055;
-                              //  std::cout << "\033[1;36m PLACE: -> \033[1;36m  x: " << desired_pose.position.x << ", y: " <<  desired_pose.position.y << ", z: " << desired_pose.position.z << std::endl;
-                               this->logfile << "State: PLACE_DIAGONAL2 - Pose --> x: " << desired_pose.position.x << " / y: -0.28 / z: " << desired_pose.position.z << std::endl;
-                               kinova_linear_moveMakeActionRequest(desired_pose, kortex_driver::CartesianReferenceFrame::CARTESIAN_REFERENCE_FRAME_MIXED, 0.08);
-                               this->state=WAIT_PLACE_DIAGONAL2;
-                           }
-      break;
-
-      // Wait until it ends the diagonal movement (with linear movement controller)
-      case WAIT_PLACE_DIAGONAL2: ROS_DEBUG("PickCrumpledAlgNode: state WAIT PLACE DIAGONAL");
-                                {
-                                  actionlib::SimpleClientGoalState kinova_linear_move_state(actionlib::SimpleClientGoalState::PENDING);
-                                  // to get the state of the current goal
-                                  this->alg_.unlock();
-                                  kinova_linear_move_state=kinova_linear_move_client_.getState(); // Possible state values are: PENDING,ACTIVE,RECALLED,REJECTED,PREEMPTED,ABORTED,SUCCEEDED and LOST
-                                  this->alg_.lock();
-
-                                  ROS_DEBUG("PickCrumpledAlgNode::mainNodeThread: kinova_linear_move_client_ action state = %s", kinova_linear_move_state.toString().c_str());;
-                                  if(kinova_linear_move_state==actionlib::SimpleClientGoalState::ABORTED or kinova_linear_move_state==actionlib::SimpleClientGoalState::LOST)
-                                  {
-                                    ROS_INFO("Action aborted!");
-                                    this->state=END;
-                                  }
-                                  else if(kinova_linear_move_state==actionlib::SimpleClientGoalState::SUCCEEDED)
-                                  {
-                                    this->success = true;
-                                    this->state=OPEN_GRIPPER;
-                                    ros::Duration(0.5).sleep();
-                                  }
-                                }
-      break;
-
-  //PLACE ROTATING ! 
-      //Place rotando
-      // PRE PLACE2 - CARTESIAN
-      // Sets a rotation so the garment stays vertical to the table (with cartesian controller)
-      case PRE_PLACE_ROTATING: ROS_DEBUG("PickCrumpledAlgNode: state PRE PLACE ROTATING");
-                               {
-                                 ROS_INFO("PRE_PLACE_ROTATING - Rotating PRE-place position.");
-                                 
-                                 this->pre_grasp_center.x = 0.45; //tool_pose.x-this->garment_edge_size/1.5;
-                                 this->pre_grasp_center.y = -0.28; //tool_pose.y;//-0.15;
-			                           this->pre_grasp_center.z = this->garment_edge_size;// + 0.04;// + 0.12;
-                                 this->pre_grasp_center.theta_x = 0;
-                                 this->pre_grasp_center.theta_y = 165;
-                                 this->pre_grasp_center.theta_z = 179;
-                                //  std::cout << "\033[1;36m PRE-PLACE: -> \033[1;36m  x: " << this->pre_grasp_center.x << ", y: " << this-> pre_grasp_center.y << ", z: " << this->pre_grasp_center.z << std::endl;
-                                this->logfile << "State: PRE_PLACE_ROTATING - Pose -->  x: " << this->pre_grasp_center.x << " / y: -0.28 / z: " << this->pre_grasp_center.z << std::endl;
-                                 this->success &= send_cartesian_pose(this->pre_grasp_center);
-                                 if (this->success)
-                                 {
-                                   ROS_INFO("Success PRE PLACE ROTATING");
-                                   ros::Duration(0.5).sleep();
-				                          //  if(this->piling)
-				                          //    this->state=PILING;
-				                          //  else
-                                  //    this->state=PLACE_ROTATING;
-                                  this->state=PLACE_ROTATING;
-                                 }
-			                           else
-			                             this->state=END;
-                               }
-      break;
-
-      // PLACE2 - CARTESIAN
-      // Sets the placing position in the table from the vertical rotation (with cartesian controller)
-      case PLACE_ROTATING: ROS_DEBUG("PickCrumpledAlgNode: state PLACE ROTATING");
-                           {
-                             ROS_INFO("PickCrumpledSM: Sending to PLACE position.");
-                             this->pre_grasp_center.x = 0.12 + 0.1; //this->garment_edge_size + 0.12; //tool_pose.x-this->garment_edge_size-0.05;//-0.07;//*1.2;///1.5;
-                             this->pre_grasp_center.y = -0.28; //tool_pose.y;
-                             this->pre_grasp_center.z = this->pile_height + config_.table_height + 0.15;
-                             this->pre_grasp_center.theta_x = 0;
-                             this->pre_grasp_center.theta_y = -125.5;
-                             this->pre_grasp_center.theta_z = 180;
-                            //  std::cout << "\033[1;36m PLACE: -> \033[1;36m  x: " << this->pre_grasp_center.x << ", y: " << this-> pre_grasp_center.y << ", z: " << this->pre_grasp_center.z << std::endl;
-                            //  std::cout << " x: 0.22 " << std::endl;
-                            //  std::cout << " y: current " << std::endl;
-                            //  std::cout << " z: pile (" << this->pile_height << ")+ table (" << config_.table_height << ")+0.13" << std::endl;
-                             this->logfile << "State: PLACE_ROTATING - Pose -->  x: " << this->pre_grasp_center.x << " / y: -0.28 / z: " << this->pre_grasp_center.z << std::endl;
-                             this->success &= send_cartesian_pose(this->pre_grasp_center);
-                             if (this->success)
-                             {
-                               ROS_INFO("Success PLACE ROTATING");
-                               ros::Duration(0.5).sleep();
-                               //this->state=OPEN_GRIPPER;
-			                         this->state=PLACE222;
-                             }
-			                       else
-                             {
-                               ROS_INFO("UNSUCCESS PLACE2");
-                               ros::Duration(0.5).sleep();
-                               //this->state=OPEN_GRIPPER;
-			                         this->state=PLACE22;
-                             }
-                           }
-      break;
-
-      case PLACE22: ROS_DEBUG("PickCrumpledAlgNode: state PLACE22");
-                    {
-                      ROS_INFO("PickCrumpledSM: Sending to PLACE2 position.");
-                      
-                      this->pre_grasp_center.x = 0.12 + 0.05; //tool_pose.x-0.07;
-                      this->pre_grasp_center.y = -0.28; //tool_pose.y;
-                      this->pre_grasp_center.z = tool_pose.z;
-                      this->pre_grasp_center.theta_x = 0;
-                      this->pre_grasp_center.theta_y = -125.5;
-                      this->pre_grasp_center.theta_z = 180;
-                      // std::cout << "\033[1;36m PLACE22: -> \033[1;36m  x: " << this->pre_grasp_center.x << ", y: " << this-> pre_grasp_center.y << ", z: " << this->pre_grasp_center.z << std::endl;
-                      this->logfile << "State: PLACE22 - Pose -->  x: " << this->pre_grasp_center.x << " / y: -0.28 / z: " << this->pre_grasp_center.z << std::endl;
-                      this->success &= send_cartesian_pose(this->pre_grasp_center);
-                      if (this->success)
-                      {
-                        ROS_INFO("Success PLACE22");
-                        ros::Duration(0.5).sleep();
-                        this->state=PLACE222;
-                      }
-			                else
-                      {
-                        ROS_INFO("UNSUCCESS PLACE22");
-                        ros::Duration(0.5).sleep();
-                        this->state=PLACE222;
-                      }
-			                //this->state=END;
-                    }
-      break;
-
-      case PLACE222: ROS_DEBUG("PickCrumpledAlgNode: state PLACE222");
-                      {
-                        ROS_INFO("PickCrumpledSM: Sending to PLACE2 position.");
-                        this->pre_grasp_center.x = 0.12; //tool_pose.x-0.07;
-                        this->pre_grasp_center.y = -0.28; //tool_pose.y;
-                        this->pre_grasp_center.z = this->pile_height + config_.table_height + 0.055;
-                        this->pre_grasp_center.theta_x = 0;
-                        this->pre_grasp_center.theta_y = -125.5;
-                        this->pre_grasp_center.theta_z = 180;
-                        // std::cout << "\033[1;36m PLACE2: -> \033[1;36m  x: " << this->pre_grasp_center.x << ", y: " << this-> pre_grasp_center.y << ", z: " << this->pre_grasp_center.z << std::endl;
-                        // std::cout << " x: 0.12 " << std::endl;
-                        // std::cout << " y: current " << std::endl;
-                        // std::cout << " z: pile (" << this->pile_height << ")+ table (" << config_.table_height << ")+0.05" << std::endl;
-                        this->logfile << "State: PLACE222 - Pose -->  x: " << this->pre_grasp_center.x << " / y: -0.28 / z: " << this->pre_grasp_center.z << std::endl;
-                        this->success &= send_cartesian_pose(this->pre_grasp_center);
-                        if (this->success)
-                        {
-                          ROS_INFO("Success PLACE222");
-                          ros::Duration(0.5).sleep();
-                          this->state=OPEN_GRIPPER;
-                        }
-			                  else
-                        {
-                          ROS_INFO("UNSUCCESS PLACE222");
-                          ros::Duration(0.5).sleep();
-                          this->state=OPEN_GRIPPER;
-                        }
-                      }
-      break;
-
-  // PLACE VERTICAL!
-
-      // Sets the placing position to perform a straight placement (with linear movement controller)
-      case PRE_PLACE_VERTICAL: ROS_DEBUG("PickCrumpledAlgNode: state PRE PLACE VERTICAL");
-                            {
-                              ROS_INFO("PickCrumpledSM: Sending to PRE-place position.");
-                              
-                              geometry_msgs::Pose desired_pose;
-                              if(this->n_obj_pile==0)
-                                desired_pose.position.x = 0.12; 
-                              else
-                                desired_pose.position.x = 0.14; //Because the first one slides due to higher friction between cloth-cloth
-                              desired_pose.position.y = -0.28;
-                              desired_pose.position.z = tool_pose.z;
-                              // std::cout << "\033[1;36m PRE-PLACE: -> \033[1;36m  x: " << desired_pose.position.x << ", y: " <<  desired_pose.position.y << ", z: " << desired_pose.position.z << std::endl;
-                              this->logfile << "State: PRE_PLACE_VERTICAL - Pose --> x: " << desired_pose.position.x << " / y: -0.28 / z: " << desired_pose.position.z << std::endl;
-                              kinova_linear_moveMakeActionRequest(desired_pose, kortex_driver::CartesianReferenceFrame::CARTESIAN_REFERENCE_FRAME_MIXED, 0.08);
-                              this->state=WAIT_PRE_PLACE_VERTICAL;
-                            }
-      break;
-
-      // Waits until it places the garment vertically (linear)
-      case WAIT_PRE_PLACE_VERTICAL: ROS_DEBUG("PickCrumpledAlgNode: state WAIT PRE PLACE VERTICAL");
-                       {
-                         actionlib::SimpleClientGoalState kinova_linear_move_state(actionlib::SimpleClientGoalState::PENDING);
-                         // to get the state of the current goal
-                         this->alg_.unlock();
-                         kinova_linear_move_state=kinova_linear_move_client_.getState();
-                         // Possible state values are: PENDING,ACTIVE,RECALLED,REJECTED,PREEMPTED,ABORTED,SUCCEEDED and LOST
-                         this->alg_.lock();
-                         ROS_DEBUG("PickCrumpledAlgNode::mainNodeThread: kinova_linear_move_client_ action state = %s", kinova_linear_move_state.toString().c_str());
-                         if(kinova_linear_move_state==actionlib::SimpleClientGoalState::ABORTED or kinova_linear_move_state==actionlib::SimpleClientGoalState::LOST)
-                         {
-                           ROS_INFO("Action aborted!");
-                           this->state=END;
-                         }
-                         else if(kinova_linear_move_state==actionlib::SimpleClientGoalState::SUCCEEDED)
-                         {
-                           this->success = true;
-                           state=PLACE_VERTICAL;
-                           ros::Duration(0.5).sleep();
-                         }
-                       }
-      break;
-
-      // Sets the placing position to perform a straight placement (with linear movement controller)
-      case PLACE_VERTICAL: ROS_DEBUG("PickCrumpledAlgNode: state PLACE VERTICAL");
-                        {
-                          ROS_INFO("PickCrumpledSM: Sending to PLACE position.");
-                          geometry_msgs::Pose desired_pose;
-                          desired_pose.position.x = tool_pose.x;
-                          desired_pose.position.y = -0.28; //tool_pose.y;
-                          desired_pose.position.z = this->pile_height + config_.table_height + 0.05;
-                          // std::cout << "\033[1;36m PLACE: -> \033[1;36m  x: " << desired_pose.position.x << ", y: " <<  desired_pose.position.y << ", z: " << desired_pose.position.z << std::endl;
-    		                  // std::cout << " x: current " << std::endl;
-                          // std::cout << " y: current " << std::endl;
-                          // std::cout << " z: pile (" << this->pile_height << ")+ table (" << config_.table_height << ")+0.05" << std::endl;
-                          this->logfile << "State: PLACE_VERTICAL - Pose --> x: " << desired_pose.position.x << " / y: -0.28 / z: " << desired_pose.position.z << std::endl;
-                          kinova_linear_moveMakeActionRequest(desired_pose, kortex_driver::CartesianReferenceFrame::CARTESIAN_REFERENCE_FRAME_MIXED, 0.08);
-                          this->state=WAIT_PLACE_VERTICAL;
-                        }
-      break;
-
-      // Waits until it places the garment vertically (linear)
-      case WAIT_PLACE_VERTICAL: ROS_DEBUG("PickCrumpledAlgNode: state WAIT PLACE VERTICAL");
-                             {
-                               actionlib::SimpleClientGoalState kinova_linear_move_state(actionlib::SimpleClientGoalState::PENDING);
-                               // to get the state of the current goal
-                               this->alg_.unlock();
-                               kinova_linear_move_state=kinova_linear_move_client_.getState();
-                               // Possible state values are: PENDING,ACTIVE,RECALLED,REJECTED,PREEMPTED,ABORTED,SUCCEEDED and LOST
-                               this->alg_.lock();
-                               ROS_DEBUG("PickCrumpledAlgNode::mainNodeThread: kinova_linear_move_client_ action state = %s", kinova_linear_move_state.toString().c_str());;
-                               if(kinova_linear_move_state==actionlib::SimpleClientGoalState::ABORTED or kinova_linear_move_state==actionlib::SimpleClientGoalState::LOST)
-                               {
-                                 ROS_INFO("Action aborted!");
-                                 this->state=END;
-                               }
-                               else if(kinova_linear_move_state==actionlib::SimpleClientGoalState::SUCCEEDED)
-                               {
-                                 this->success = true;
-                                 state=OPEN_GRIPPER;
-                                 ros::Duration(0.5).sleep();
-                               }
-                             }
-      break;
-
-      case PILING: ROS_DEBUG("PickCrumpledAlgNode: state PILING");
-                   {
-                     ROS_INFO("PickCrumpledSM: Sending to PILING position.");
-                     this->logfile << "State: PILING" << std::endl;
-                     this->pre_grasp_center.x = tool_pose.x-this->garment_edge_size;
-                     this->pre_grasp_center.y = tool_pose.y;
-                     this->pre_grasp_center.z = this->garment_edge_size;
-                     this->pre_grasp_center.theta_x = 0;
-                     this->pre_grasp_center.theta_y = -150;
-                     this->pre_grasp_center.theta_z = 180;
-                     std::cout << "\033[1;36m Going to: -> \033[1;36m  x: " << this->pre_grasp_center.x << ", y: " << this-> pre_grasp_center.y << ", z: " << this->pre_grasp_center.z << std::endl;
-                     this->success &= send_cartesian_pose(this->pre_grasp_center);
-                     if (this->success)
-                     {
-                       ROS_INFO("Success PILING");
-                       ros::Duration(0.5).sleep();
-                       this->state=PILING2;
-                     }
-                   }
-      break;
-
-      case PILING2: ROS_DEBUG("PickCrumpledAlgNode: state PILING2");
-                    {
-                      ROS_INFO("PickCrumpledSM: Sending to PILING2 position.");
-                      this->logfile << "State: PILING2" << std::endl;
-                      this->pre_grasp_center.x = tool_pose.x-0.1; //minus the width of the already placed garment?? //so the gripper ends at the edge of this garment
-                      this->pre_grasp_center.y = tool_pose.y;
-                      this->pre_grasp_center.z = config_.table_height + 0.1; //Pile height
-                      this->pre_grasp_center.theta_x = 0;
-                      this->pre_grasp_center.theta_y = -125.5;
-                      this->pre_grasp_center.theta_z = 180;
-                      std::cout << "\033[1;36m Going to: -> \033[1;36m  x: " << this->pre_grasp_center.x << ", y: " << this-> pre_grasp_center.y << ", z: " << this->pre_grasp_center.z << std::endl;
-                      this->success &= send_cartesian_pose(this->pre_grasp_center);
-                      if (this->success)
-                      {
-                        ROS_INFO("Success PILING2");
-                        ros::Duration(0.5).sleep();
-                        this->state=OPEN_GRIPPER;
-                      }
-                    }
       break;
 
 
@@ -1218,14 +429,7 @@ void PickCrumpledAlgNode::mainNodeThread(void)
                                  else if(kinova_linear_move_state==actionlib::SimpleClientGoalState::SUCCEEDED)
                                  {
                                    this->success = true;
-                                  //  if(this->pddl_demo)
-                                  //  {
-                                  //    this->pddl_action_done=true; // End PDDL action
-                                  //    this->state=IDLE;
-                                  //  }
-                                  //  else // Continue SM
-                                  //    this->state=CHECK_PLACING_QUAL;
-                                   this->state=CHECK_PLACING_QUAL;
+                                   this->state=END;
                                    ros::Duration(0.5).sleep();
                                  }
                                }
@@ -1267,80 +471,11 @@ void PickCrumpledAlgNode::mainNodeThread(void)
                                }
       break;
 
-      // //State for ROSPlan
-      // case GET_OBJECT_POSE: ROS_DEBUG("PickCrumpledAlgnode: state GET OBJECT POSE");
-      //                       {
-      //                         this->logfile << "State: GET_OBJECT_POSE" << std::endl;
-      //                         //TO DO:
-      //                         //Get object pose (nearest edge + worspace location)
-      //                         //Predict def class
-      //                         //Update KB with object pose
-      //                         //Replan
-      //                         update_kb_srv_ = updateKB_new_obj(); //Update based on sensed info (object's pose + predicted deformation class)
-      //                         if(update_kb_client_.call(update_kb_srv_))
-      //                         {
-      //                           ROS_WARN("PickCrumpledAlgNode: Knowledge Base updated!");
-      //                           ROS_WARN("PickCrumpledAlgNode: Canceling current dispatch plan to replan");
-      //                           as_.setPreempted(); //Stop current plan and replan with updated KB
-      //                           this->plan_pddl_demo=true; //Generate new problem and plan
-      //                           this->state=IDLE;
-      //                         }else{
-      //                           ROS_WARN("PickCrumpledAlgNode: Knowledge Base NOT updated!");
-      //                           this->state=END;
-      //                         }
-      //                       }
-      // break;
-
-
-      case CHECK_PLACING_QUAL: ROS_INFO("PickCrumpledAlgNode: state CHECK PLACING QUALITY");
-                              {
-                                this->expected_pile_thickn = this->expected_pile_thickn + this->objs_thickness[this->n_obj_pile]; //sum previous current obj thickness to pile thickness
-                                // this->logfile << "State: CHECK_PLACING_QUAL" << std::endl;
-                                this->logfile << "--- PLACING QUALITY ESTIMATION ---" << std::endl;
-                                this->logfile << "Placing quality parameters --> object name: " << this->objs_names[this->n_obj_pile] << ", nearest_edge: " << this->nearest_edge << ", object number in pile: " << this->n_obj_pile+1 << ", expected thickn: " << this->expected_pile_thickn << std::endl;
-                                // this->logfile << "Placing quality parameters --> object name: " << this->objs_names[this->n_obj_pile] << ", nearest_edge: " << this->nearest_edge << ", object number in pile: " << this->n_obj_pile+1 << std::endl;
-                                get_placing_quality_srv_.request.object_name = this->objs_names[this->n_obj_pile]; //obtained form reconfigure
-                                get_placing_quality_srv_.request.layers = this->objs_layers[this->n_obj_pile]; //obtained form reconfigure
-                                get_placing_quality_srv_.request.grasped_edge = this->nearest_edge;
-                                // get_placing_quality_srv_.request.piling = this->piling;
-                                get_placing_quality_srv_.request.n_objs_pile = this->n_obj_pile+1; //starts from 0
-                                // get_placing_quality_srv_.request.expected_pile_thickn = this->expected_pile_thickn[this->n_obj_pile];
-                                get_placing_quality_srv_.request.expected_pile_thickn = this->expected_pile_thickn;
-                                if(get_placing_quality_client_.call(get_placing_quality_srv_))
-                                {
-                                  this->placing_quality = get_placing_quality_srv_.response.placing_quality;
-                                  ROS_INFO("PickCrumpled: Placing quality: %f", this->placing_quality);
-                                  this->logfile << "======= Placing quality: " << this->placing_quality << std::endl;
-                                  this->logfile << "Placing error: " << 100-this->placing_quality << std::endl;
-                                  this->logfile << "=========================================================" << std::endl;
-                                  this->csvfile << this->n_obj_pile << "," << this->objs_names[this->n_obj_pile] << "," << this->predicted_def_class_short_edge_v[this->n_obj_pile] << "," << this->predicted_def_class_long_edge_v[this->n_obj_pile] << "," << this->nearest_edge << "," << this->sensed_deformation_class << "," << this->placing_quality << std::endl;
-                                  if(this->pddl_demo)
-                                   {
-                                     this->n_obj_pile += 1; //Next object of the list
-                                    //  if(this->n_obj_pile > 1) //If the object placed is not the first one (we just update the cloth-to-cloth table)
-                                    //    update_costs(); //Update cost table based on placing quality result
-                                     this->pddl_action_done=true; // End PDDL action
-                                     this->state=IDLE;
-                                   }
-                                   else
-                                     this->state=END;
-                                }else{
-                                  ROS_WARN("PickCrumpledAlgNode (CHECK PLACING QUALITY): Unable to get placing quality");
-                                  this->state=END;
-                                }
-                              }
-      break;
 
       case END: ROS_INFO("PickCrumpledAlgNode: state END");
                 {
                   this->logfile << "State: END" << std::endl;
                   this->stop=true;
-                  // this->pddl_action_done=true; //TODO if(cancel_dispatch_client_.call(empty_srv_))
-                  if(this->pddl_demo)
-                  {
-                    ROS_WARN("PickCrumpledAlgNode: Aborting plan!");
-                    as_.setAborted();
-                  }
                 }
       break;
 
@@ -1429,55 +564,39 @@ void PickCrumpledAlgNode::node_config_update(Config &config, uint32_t level)
     this->get_garment_position2=true;
     this->pddl_demo=false;
     this->start_demo=true;
-    // Predefined demo for towel and pillowcase
-    if(config.towel) //to update (objs_names, objs_layers, etc)
-    {
-      this->close_gripper=0.81;
-      this->placing_strategy="placevert"; //2
-      ROS_INFO("PickCrumpledAlgNode: Starting demo for towel with vertical placing");
-    }
-    else if(config.napkin)
-    {
-      this->close_gripper=0.98;
-      this->placing_strategy="placerot";//place2 //3
-      ROS_INFO("PickCrumpledAlgNode: Starting demo for thin object with rotating placing");
-    }
-    // Custom demo (selected gripper closing and placing strategy)
-    else
-    {
-      ROS_INFO("PickCrumpledAlgNode: Starting demo with selected gripper apperture and placing strategy");
-      this->close_gripper=config.close_gripper;
-      this->n_obj_pile = 0; //Place just one object
-      this->objs_names.push_back(config.objs_to_pile); //obtain form reconfigure
-      this->objs_layers.push_back(config.layers);
-      if(config.vertical_place)
+    ROS_INFO("PickCrumpledAlgNode: Starting demo with selected gripper apperture and placing strategy");
+    this->close_gripper=config.close_gripper;
+    this->n_obj_pile = 0; //Place just one object
+    this->objs_names.push_back(config.objs_to_pile); //obtain form reconfigure
+    this->objs_layers.push_back(config.layers);
+    if(config.vertical_place)
       {
         this->placing_strategy="placevert";//2
         ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Vertical");
       }
-      else if(config.diagonal_place)
+    else if(config.diagonal_place)
       {
         this->placing_strategy="placediag"; //1
         ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Diagonal");
       }
-      else if(config.rotating_place)
+    else if(config.rotating_place)
       {
         this->placing_strategy="placerot"; //place2 3
         ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Rotating");
       }
-      else if(config.dynamic_place)
+    else if(config.dynamic_place)
       {
         this->placing_strategy="placedyn"; //dynamic (executed outside SM) //4
         ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Dynamic");
       }
-      else
+    else
       {
         this->placing_strategy="placevert"; //2
         ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Vertical");
       }
-    }
     config.start_demo=false;
   }
+  
   // Select grasping point
   if(config.get_grasp_point)
   {
@@ -1489,7 +608,8 @@ void PickCrumpledAlgNode::node_config_update(Config &config, uint32_t level)
     config.get_grasp_point=false;
     // this->garment_edge_size=config.garment_edge_size;
   }
-// Execute Drag or Rotate actions before demo
+
+  // Execute Drag or Rotate actions before demo
   if(config.drag)
   {
     //ROS_WARN("PickCrumpledAlgNode: Activated PDDL SM management");
@@ -1503,131 +623,36 @@ void PickCrumpledAlgNode::node_config_update(Config &config, uint32_t level)
     this->rotate=true;
   }
 
-// ---START SM FROM CHECK DEFORMATION---
-if(config.start_experiments) 
-{
-  this->pddl_demo=false;
-  this->start_experiments=true;
-  this->n_obj_pile = 0; //Place just one object
-  this->objs_names.push_back(config.objs_to_pile); //obtain form reconfigure
-  this->objs_layers.push_back(config.layers);
-  if(config.vertical_place)
+  // ---START SM FROM CHECK DEFORMATION---
+  if(config.start_experiments) 
   {
-    this->placing_strategy="placevert"; //2
-    ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Vertical");
-  }
-  else if(config.diagonal_place)
-  {
-    this->placing_strategy="placediag"; //1
-    ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Diagonal");
-  }
-  else if(config.rotating_place)
-  {
-    this->placing_strategy="placerot"; //place2
-    ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Rotating");
-  }
-  else
-  {
-    this->placing_strategy="placevert"; //2
-    ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Vertical");
-  }
-  config.start_experiments=false;
-}
-
-  // ---PLANNER SYSTEM PARAMS---
-    // Execute sections of SM according to received PDDL actions
-  if(config.plan_pddl_demo)
-  {
-    ROS_WARN("PickCrumpledAlgNode: Activated PDDL SM management");
-    this->planningfile << "---INIT PLAN---\n" << std::endl;
-    this->plan_pddl_demo=true;
-    config.plan_pddl_demo=false;
-    //this->pddl_demo=true;
-  }
-  // Indicate if there is a pile for computing placing quality metric
-  // if(config.piling)
-  // {
-  //   this->piling=true;
-  // }
-  // Assign object properties for planner system (prediction, state estimation, etc)
-  // if (config.object_name == "towel" && config.layers == "8l") {
-  //   this->stiffness = 99.9;
-  //   this->friction = 80;
-  //   this->object_thickness_drag = 0.055; // For drag action
-  //   this->object_thickness_rotate = 0.07; // For rotate action
-  // } else if (config.object_name == "towel" && config.layers == "12l") {
-  //   this->stiffness = 100;
-  //   this->friction = 78;
-  //   // this->object_thickness = 0.07; // For drag action - to check
-  //   // this->object_thickness_rotate = 0.09; // For rotate action - to check
-  // } else if (config.object_name == "pillowc" && config.layers == "8l") {
-  //   this->stiffness = 60.1;
-  //   this->friction = 79; //82.7;
-  //   this->object_thickness_drag = 0.035; // For drag action
-  //   this->object_thickness_rotate = 0.057; // For rotate action
-  // } else if (config.object_name == "pillowc" && config.layers == "12l") {
-  //   this->stiffness = 70;
-  //   this->friction = 76;
-  // } else if (config.object_name == "cotnap" && config.layers == "4l") {
-  //   this->stiffness = 61.8;
-  //   this->friction = 80;
-  // } else if (config.object_name == "linenap" && config.layers == "8l") {
-  //   this->stiffness = 74.5;
-  //   this->friction = 82;
-  // } else if (config.object_name == "waffle" && config.layers == "8l") {
-  //   this->stiffness = 85.7;
-  //   this->friction = 85;
-  //   this->object_thickness_drag = 0.04; // For drag action
-  //   this->object_thickness_rotate = 0.065; // For rotate action
-  // } else if (config.object_name == "check" && config.layers == "6l") {
-  //   this->stiffness = 49;
-  //   this->friction = 87; //88.4
-  //   this->object_thickness_drag = 0.03; // For drag action
-  //   this->object_thickness_rotate = 0.06; // For rotate action
-  // } else if (config.object_name == "linenap" && config.layers == "16l") {
-  //   this->stiffness = 80;
-  //   this->friction = 81; 
-  //   this->object_thickness_drag = 0.03; // For drag action
-  //   this->object_thickness_rotate = 0.06; // For rotate action
-  // } else 
-  //   ROS_WARN("Unkown object properties for: %s + %s", config.object_name.c_str(), config.layers.c_str());
-
-  // ---OTHER PARAMS---
-  /*// Start SM for experiments (Starts from state X + Select placing strategy)
-  else if(config.start_experiments)
-  {
+    this->pddl_demo=false;
     this->start_experiments=true;
-    this->close_gripper=config.close_gripper;
+    this->n_obj_pile = 0; //Place just one object
+    this->objs_names.push_back(config.objs_to_pile); //obtain form reconfigure
+    this->objs_layers.push_back(config.layers);
     if(config.vertical_place)
     {
-      this->placing_strategy=2;//vertical
+      this->placing_strategy="placevert"; //2
       ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Vertical");
     }
     else if(config.diagonal_place)
     {
-      this->placing_strategy=1; //diagonal
+      this->placing_strategy="placediag"; //1
       ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Diagonal");
     }
     else if(config.rotating_place)
     {
-      this->placing_strategy=3; //place2
+      this->placing_strategy="placerot"; //place2
       ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Rotating");
-    }
-    else if(config.dynamic_place)
-    {
-      this->placing_strategy=4; //place2
-      ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Dynamic");
     }
     else
     {
-      this->placing_strategy=2; //vertical
+      this->placing_strategy="placevert"; //2
       ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Vertical");
     }
     config.start_experiments=false;
-    //this->pile_height=config.pile_height;
-    //std::cout << "Pile height: " << pile_height << std::endl;
-    std::cout << "Garment edge: " << garment_edge_size << std::endl;
-  }*/
+  }
 
   if(config.stop)
     this->stop=true;
@@ -1642,6 +667,7 @@ if(config.start_experiments)
     this->pre_grasp_center.theta_z = config.grasp_thetaz;
     std::cout << "\033[1;36m PRE-GRASP position: -> \033[1;0m  x: " << this->pre_grasp_center.x << ", y: " << this-> pre_grasp_center.y << ", z: " << this->pre_grasp_center.z << std::endl;
     std::cout << "\033[1;36m PRE-GRASP orientation: -> \033[1;0m  x: " << this->pre_grasp_center.theta_x << ", y: " << this-> pre_grasp_center.theta_y << ", z: " << this->pre_grasp_center.theta_z << std::endl;
+    this->get_test_grasp_point = true;
     config.test=false;
   }
   config.ok=false;
@@ -1650,926 +676,7 @@ if(config.start_experiments)
   this->alg_.unlock();
 }
 
-/* PDDL FUNCTIONS */
-void PickCrumpledAlgNode::PDDLpreemptCB()
-{
-  ROS_INFO("PickCrumpled: PDDL Action Preempted");
-  this->state=IDLE;
-  // set the action state to preempted
-  as_.setPreempted();
-
-  // as_.setAborted();
-}
-
-//PDDL action callback manager
-//void PickCrumpledAlgNode::executeCB(const pick_crumpled::activateSMGoalConstPtr &goal
-void PickCrumpledAlgNode::PDDLgoalCB()
-{
-  ROS_INFO("PickCrumpled: PDDL goal received!");
-  ros::Rate r(1);
-  bool success = true;
-  std::string action_name_ = "activatesm";
-  pick_crumpled::activateSMGoalConstPtr goal;
-  pick_crumpled::activateSMFeedback feedback_;
-  pick_crumpled::activateSMResult result_;
-
-  goal = as_.acceptNewGoal();
-
-  // // Check if an action is already being executed
-  // if (m_server_state != ActionServerState::IDLE)
-  // {
-  //     ROS_WARN("There is already an active cartesian goal. It is being cancelled.");
-  //     // We have to call Stop after having received the ACTION_START notification from the arm
-  //     stop_all_movement();
-  // }
-
-  // push_back the seeds for the activateSM sequence
-  // feedback_.sequence.clear();
-  // feedback_.sequence.push_back(0);
-  // feedback_.sequence.push_back(1);
-  
-
-  // start executing the action
-  if(0==goal->action_name.compare("home")) 
-  {
-    ROS_WARN("PickCrumpled: Executing HOME section of the FSM");
-    this->start_demo=true;
-  }
-  else if(0==goal->action_name.compare("go_high")) 
-  {
-    ROS_WARN("PickCrumpled: GO HIGH action");
-    this->state=CHECK_CORNERS_POSE;
-  }
-  else if(0==goal->action_name.compare("check_corners")) 
-  {
-    ROS_INFO("PickCrumpled: PDDL Action %s received", goal->action_name.c_str());
-    ROS_WARN("PickCrumpled: Executing CHECK CORNERS section of the finite state machine");
-    this->process_grasp_pointcloud=true;
-    this->get_garment_position=true;
-  }
-  else if(0==goal->action_name.compare("grasp")) 
-  {
-    ROS_WARN("PickCrumpled: Executing GRASP section of the FSM");
-    //this->pddl_action_done=true;
-    this->close_gripper=0.81; //This will depend on PDDL parameter of cloth objects
-    this->state=PRE_GRASP;
-  }
-  else if(0==goal->action_name.compare("check_deformation")) 
-  {
-    ROS_WARN("PickCrumpled: CHECK DEFORMATION action");
-    this->state=EXPERIMENTS1;
-  }
-  else if(0==goal->action_name.compare("placevert")) 
-  {
-    ROS_WARN("PickCrumpled: PLACE VERT action");
-    this->placing_strategy="placevert";
-    this->state=CHOOSE_PLACING;
-  }
-  else if(0==goal->action_name.compare("placediag")) 
-  {
-    ROS_WARN("PickCrumpled: PLACE DIAG action");
-    this->placing_strategy="placediag"; 
-    this->state=CHOOSE_PLACING;
-  }
-  else if(0==goal->action_name.compare("placerot")) 
-  {
-    ROS_WARN("PickCrumpled: PLACE ROT action");
-    this->placing_strategy="placerot"; 
-    this->state=CHOOSE_PLACING;
-  }
-  else if(0==goal->action_name.compare("drag")) 
-  {
-    ROS_WARN("PickCrumpled: DRAG action");
-    this->drag=true;
-    this->rotate=false;
-    this->state=PRE_PRE_DRAG;
-  }
-  else if(0==goal->action_name.compare("rotate")) 
-  {
-    ROS_WARN("PickCrumpled: ROTATE action");
-    // if(this->drag) //If it comes from drag position continue with rotation
-    //   this->state=ROTATE;
-    // else
-    //   this->state=PRE_PRE_ROTATE; //If drag action has not been planned, go to drag_rotate init pose
-    this->drag=false;
-    this->rotate=true;
-    this->rotation=90;
-    this->state=PRE_PRE_ROTATE;
-  }
-  // else if(0==goal->action_name.compare("new_object")) 
-  // {
-  //   ROS_WARN("PickCrumpled: NEW OBJECT action");
-  //   // this->piling=true;
-  //   this->n_obj_pile+=1;
-  //   this->pddl_action_done=true;
-  //   // this->get_garment_position=true;
-  //   // this->state=GET_OBJECT_POSE;
-  // }
-  else
-  {
-    ROS_WARN("PickCrumpled: No action received");
-    success = false;
-  }
-  
-  /* 
-    for(int i=1; i<=goal->order; i++)
-    {
-      // check that preempt has not been requested by the client
-      if (as_.isPreemptRequested() || !ros::ok())
-      {
-        ROS_INFO("%s: Preempted", action_name_.c_str());
-        // set the action state to preempted
-        as_.setPreempted();
-        success = false;
-        break;
-      }
-      feedback_.sequence.push_back(feedback_.sequence[i] + feedback_.sequence[i-1]);
-      // publish the feedback
-      as_.publishFeedback(feedback_);
-      // this sleep is not necessary, the sequence is computed at 1 Hz for demonstration purposes
-      r.sleep();
-    }
-    if(goal->action_name)
-
-    Put a while, how? el while bloquea, que otra forma hay? 
-    Usar funciones? Para que el result lo reciba la funcion correspondiente y no tenga que bloquear en medio de esta funcion?
-    if(this->pddl_action_done)
-      //Manage also error if actions in FSM failed!
-      success=true; 
-    else 
-      success=false;
-
-    // ROS_WARN("Action name: (%s)", goal->action_name.c_str());
-    // ROS_WARN("Activate grasp bool: (%d)", goal->activate_grasp);
-
-    if(success)
-    {
-      //result_.sequence = feedback_.sequence;
-      result_.done_action = true;
-      ROS_INFO("%s: Succeeded", action_name_.c_str());
-      // set the action state to succeeded
-      as_.setSucceeded(result_);
-    }
-    if(!success)
-      as_.setAborted();
-  */
-}
-
-void PickCrumpledAlgNode::managePDDLactions(void)
-{
-  pick_crumpled::activateSMResult result_;
-
-  //if (m_server_state != ActionServerState::IDLE)
-  // //Manage also error if actions in FSM failed!
-  // else 
-
-  result_.done_action = true;
-  
-  ROS_WARN("PickCrumpledAlgNode: PDDL Action ended");
-  as_.setSucceeded(result_); // set the action state to succeeded
-  this->pddl_action_done=false;
-}
-
-rosplan_knowledge_msgs::KnowledgeUpdateServiceArray PickCrumpledAlgNode::updateKB_init(void)
-{
-  //Updates predicates garment_at (workspace), at_pose (nearest edge) and obj_grasp_class (predicted edge/def class combinations)
-  this->logfile << "\n--- UPDATING KB: garment_at, at_pose, obj_grasp_class ---\n";
-
-  //Get current predicate values
-  // rosplan_knowledge_msgs::KnowledgeItem[] current_kb_state;
-  
-  std::vector<rosplan_knowledge_msgs::KnowledgeItem> current_kb_state;
-  // std::string object;
-
-  std::cout << "Nearest edge " << this->nearest_edge <<std::endl;
-  std::cout << "Workspace " << this->workspace <<std::endl;
-
-  //OBJECT'S WORKSPACE
-  get_kb_state_srv_.request.predicate_name = "garment_at"; 
-  // current_kb_state = get_kb_state_client_.call(get_kb_state_srv_);
-  if(get_kb_state_client_.call(get_kb_state_srv_))
-  {
-    current_kb_state = get_kb_state_srv_.response.attributes;
-    ROS_WARN("Update garment_at");
-
-    for(size_t i=0; i<current_kb_state.size(); i++) {
-      if(current_kb_state[i].values[0].value == this->pddl_objs_names[this->n_obj_pile]) //Update only the CURRENT object state
-      {
-        //Remove previous workspace
-        // ROS_INFO("PickCrumpled: REMOVING %s to %s", current_kb_state[i].values[1].value.c_str(), current_kb_state[i].values[0].value.c_str());
-        this->logfile << "PickCrumpled: REMOVING " << current_kb_state[i].values[1].value.c_str() << " to " << current_kb_state[i].values[0].value.c_str() << std::endl;
-        rosplan_knowledge_msgs::KnowledgeItem item;
-        item.knowledge_type = rosplan_knowledge_msgs::KnowledgeItem::FACT;
-        item.attribute_name = "garment_at";
-        item.values.clear();
-        diagnostic_msgs::KeyValue pair;
-        pair.key = "cloth";
-        pair.value = current_kb_state[i].values[0].value; //"towel" 
-        item.values.push_back(pair);
-        pair.key = "ws";
-        pair.value = current_kb_state[i].values[1].value; //"grws"; //Get from current KB state
-        item.values.push_back(pair);
-        update_kb_srv_.request.knowledge.push_back(item);
-        update_kb_srv_.request.update_type.push_back(rosplan_knowledge_msgs::KnowledgeUpdateService::Request::REMOVE_KNOWLEDGE);
-
-        ROS_INFO("PickCrumpled: ADDING %s to %s", this->workspace.c_str(), current_kb_state[i].values[0].value.c_str());
-        this->logfile << "PickCrumpled: ADDING " << this->workspace.c_str() << " to " << current_kb_state[i].values[0].value.c_str() << std::endl;
-        //Add sensed workspace
-        item.knowledge_type = rosplan_knowledge_msgs::KnowledgeItem::FACT;
-        item.attribute_name = "garment_at";
-        item.values.clear();
-        pair.key = "cloth";
-        pair.value = current_kb_state[i].values[0].value; //"towel"; //Get from current KB state 
-        item.values.push_back(pair);
-        pair.key = "ws";
-        pair.value = this->workspace;
-        item.values.push_back(pair);
-        update_kb_srv_.request.knowledge.push_back(item);
-        update_kb_srv_.request.update_type.push_back(rosplan_knowledge_msgs::KnowledgeUpdateService::Request::ADD_KNOWLEDGE);
-      }
-    }
-    // return update_kb_srv_;
-    // std::cout << current_kb_state[0].values.value[1] << std::endl;
-  }else
-    ROS_WARN("PickCrumpledAlgNode: Not possible to get current KB state");
-
-  //OBJECT'S EDGE POSE
-  get_kb_state_srv_.request.predicate_name = "at_pose"; 
-  if(get_kb_state_client_.call(get_kb_state_srv_))
-  {
-    current_kb_state = get_kb_state_srv_.response.attributes;
-    ROS_WARN("Update at_pose");
-
-    for(size_t i=0; i<current_kb_state.size(); i++) {
-      // if(this->n_obj_pile>1) //If the object to grasp is to be piled, modify at_pose of towel2. Otherwise, towel
-      //   object = "towel2";
-      // else
-      //   object="towel";
-      if(current_kb_state[i].values[0].value == this->pddl_objs_names[this->n_obj_pile]) //Update only the CURRENT object state
-      {
-        //Remove previous edge
-        // ROS_INFO("PickCrumpled: REMOVING %s to %s", current_kb_state[i].values[1].value.c_str(), current_kb_state[i].values[0].value.c_str());
-        this->logfile << "PickCrumpled: REMOVING " << current_kb_state[i].values[1].value.c_str() << " to " << current_kb_state[i].values[0].value.c_str() << std::endl;
-        // ROS_INFO("PickCrumpled: REMOVING %s to %s", current_kb_state[i].values[1].value.c_str(), object.c_str());
-        // this->logfile << "PickCrumpled: REMOVING " << current_kb_state[i].values[1].value.c_str() << " to " << object.c_str() << std::endl;
-        rosplan_knowledge_msgs::KnowledgeItem item;
-        item.knowledge_type = rosplan_knowledge_msgs::KnowledgeItem::FACT;
-        item.attribute_name = "at_pose";
-        item.values.clear();
-        diagnostic_msgs::KeyValue pair;
-        pair.key = "cloth";
-        pair.value = current_kb_state[i].values[0].value; //towel, check, etc
-        // pair.value = object;
-        item.values.push_back(pair);
-        pair.key = "edge";
-        pair.value = current_kb_state[i].values[1].value; //"long / short"
-        item.values.push_back(pair);
-        update_kb_srv_.request.knowledge.push_back(item);
-        update_kb_srv_.request.update_type.push_back(rosplan_knowledge_msgs::KnowledgeUpdateService::Request::REMOVE_KNOWLEDGE);
-
-        // Add nearest edge
-        ROS_INFO("PickCrumpled: ADDING %s to %s", this->nearest_edge.c_str(), current_kb_state[i].values[0].value.c_str());
-        this->logfile << "PickCrumpled: ADDING " << this->nearest_edge.c_str() << " to " << current_kb_state[i].values[0].value.c_str() << std::endl;
-        // ROS_INFO("PickCrumpled: ADDING %s to %s", this->nearest_edge.c_str(), object.c_str());
-        // this->logfile << "PickCrumpled: ADDING " << this->nearest_edge.c_str() << " to " << object.c_str() << std::endl;
-        item.knowledge_type = rosplan_knowledge_msgs::KnowledgeItem::FACT;
-        item.attribute_name = "at_pose";
-        item.values.clear();
-        pair.key = "cloth";
-        pair.value = current_kb_state[i].values[0].value; //towel, check, etc
-        // pair.value = object; 
-        item.values.push_back(pair);
-        pair.key = "edge";
-        pair.value = this->nearest_edge;
-        item.values.push_back(pair);
-        update_kb_srv_.request.knowledge.push_back(item);
-        update_kb_srv_.request.update_type.push_back(rosplan_knowledge_msgs::KnowledgeUpdateService::Request::ADD_KNOWLEDGE);
-      }
-    }
-  }else
-      ROS_WARN("PickCrumpledAlgNode: Not possible to get current KB state");
-
-  /* 
-  //PREDICTED DEFORMATION CLASS - Udates both edges
-  get_kb_state_srv_.request.predicate_name = "obj_grasp_class"; 
-  if(get_kb_state_client_.call(get_kb_state_srv_))
-  {
-    current_kb_state = get_kb_state_srv_.response.attributes;
-    ROS_WARN("Update obj_grasp_class");
-
-    for(size_t i=0; i<current_kb_state.size(); i++) {
-      ROS_INFO("PickCrumpled: REMOVING %s to %s", current_kb_state[i].values[1].value.c_str(), current_kb_state[i].values[0].value.c_str());
-      this->logfile << "PickCrumpled: REMOVING " << current_kb_state[i].values[1].value.c_str() << " to " << current_kb_state[i].values[0].value.c_str() << std::endl;
-      //Remove previous def class
-      rosplan_knowledge_msgs::KnowledgeItem item;
-      item.knowledge_type = rosplan_knowledge_msgs::KnowledgeItem::FACT;
-      item.attribute_name = "obj_grasp_class";
-      item.values.clear();
-      diagnostic_msgs::KeyValue pair;
-      pair.key = "garment";
-      pair.value = current_kb_state[i].values[0].value; //towel, waffle1, waffle2, checkered1...
-      item.values.push_back(pair);
-      pair.key = "grasp";
-      pair.value = current_kb_state[i].values[1].value; //long or short
-      item.values.push_back(pair);
-      pair.key = "defclass";
-      pair.value = current_kb_state[i].values[2].value; //A, B or C
-      item.values.push_back(pair);
-      update_kb_srv_.request.knowledge.push_back(item);
-      update_kb_srv_.request.update_type.push_back(rosplan_knowledge_msgs::KnowledgeUpdateService::Request::REMOVE_KNOWLEDGE);
-
-      //UPDATE PREDICTED DEF CLASS FOR BOTH EDGES
-      if(current_kb_state[i].values[1].value == this->nearest_edge)
-      {
-        std::cout << "PickCrumpled: Predicted deformation class: " << this->predicted_def_class_nearest_edge << std::endl;
-        ROS_INFO("PickCrumpled: ADDING %s to %s", this->predicted_def_class_nearest_edge.c_str(), current_kb_state[i].values[0].value.c_str());
-        this->logfile << "PickCrumpled: ADDING " << this->predicted_def_class_nearest_edge.c_str() << " to " << current_kb_state[i].values[0].value.c_str() << std::endl;
-        //Add predicted def class
-        item.knowledge_type = rosplan_knowledge_msgs::KnowledgeItem::FACT;
-        item.attribute_name = "obj_grasp_class";
-        item.values.clear();
-        pair.key = "garment";
-        pair.value = current_kb_state[i].values[0].value; //towel, waffle1, waffle2, checkered1...
-        item.values.push_back(pair);
-        pair.key = "grasp";
-        pair.value = current_kb_state[i].values[1].value; //short or long" 
-        item.values.push_back(pair);
-        pair.key = "defclass";
-        pair.value = this->predicted_def_class_nearest_edge; //this->predicted_deformation_class;
-        item.values.push_back(pair);
-        update_kb_srv_.request.knowledge.push_back(item);
-        update_kb_srv_.request.update_type.push_back(rosplan_knowledge_msgs::KnowledgeUpdateService::Request::ADD_KNOWLEDGE);
-      }
-      else if(current_kb_state[i].values[1].value == this->second_nearest_edge) //else or else if?
-      {
-        ROS_INFO("PickCrumpled: ADDING %s to %s", this->predicted_def_class_second_nearest_edge.c_str(), current_kb_state[i].values[0].value.c_str());
-        this->logfile << "PickCrumpled: ADDING " << this->predicted_def_class_second_nearest_edge.c_str() << " to " << current_kb_state[i].values[0].value.c_str() << std::endl;
-        //Add predicted def class
-        item.knowledge_type = rosplan_knowledge_msgs::KnowledgeItem::FACT;
-        item.attribute_name = "obj_grasp_class";
-        item.values.clear();
-        pair.key = "garment";
-        pair.value = current_kb_state[i].values[0].value; //towel, waffle1, waffle2, checkered1...
-        item.values.push_back(pair);
-        pair.key = "grasp";
-        pair.value = current_kb_state[i].values[1].value; //short or long" 
-        item.values.push_back(pair);
-        pair.key = "defclass";
-        pair.value = this->predicted_def_class_second_nearest_edge; //this->predicted_deformation_class;
-        item.values.push_back(pair);
-        update_kb_srv_.request.knowledge.push_back(item);
-        update_kb_srv_.request.update_type.push_back(rosplan_knowledge_msgs::KnowledgeUpdateService::Request::ADD_KNOWLEDGE);
-      }
-      
-    }
-  }else
-      ROS_WARN("PickCrumpledAlgNode: Not possible to get current KB state");
-      */
-
-  return update_kb_srv_; //What if service could not be called?
-  
-}
-
-rosplan_knowledge_msgs::KnowledgeUpdateServiceArray PickCrumpledAlgNode::updateKB_defstate(void)
-{
-  //Update deformation class in ROSPlan knowledge base to replan accordingly
-  this->logfile << "\n--- UPDATING KB: defstate ---\n";
-
-  //Get current predicate values
-  // rosplan_knowledge_msgs::KnowledgeItem[] current_kb_state;
-  
-  get_kb_state_srv_.request.predicate_name = "defstate"; //predicate name of which we want to get the status
-  // current_kb_state = get_kb_state_client_.call(get_kb_state_srv_);
-  if(get_kb_state_client_.call(get_kb_state_srv_)){
-    std::vector<rosplan_knowledge_msgs::KnowledgeItem> current_kb_state;
-    // diagnostic_msgs::KeyValue &pair;
-    current_kb_state = get_kb_state_srv_.response.attributes;
-
-    for(size_t i=0; i<current_kb_state.size(); i++) {
-      if(current_kb_state[i].values[0].value == this->pddl_objs_names[this->n_obj_pile]) //Update only the CURRENT object state
-      {
-        // std::cout << "PickCrumpled: Sense deformation class: " << this->sensed_deformation_class << std::endl;
-        ROS_INFO("PickCrumpled: REMOVING %s to %s", current_kb_state[i].values[1].value.c_str(), current_kb_state[i].values[0].value.c_str());
-        this->logfile << "PickCrumpled: REMOVING " << current_kb_state[i].values[1].value.c_str() << " to " << current_kb_state[i].values[0].value.c_str() << std::endl;
-
-        //Remove previous def class
-        rosplan_knowledge_msgs::KnowledgeItem item;
-        item.knowledge_type = rosplan_knowledge_msgs::KnowledgeItem::FACT;
-        item.attribute_name = "defstate";
-        item.values.clear();
-        diagnostic_msgs::KeyValue pair;
-        pair.key = "cloth";
-        pair.value = current_kb_state[i].values[0].value; //towel, waffle1, check2...
-        item.values.push_back(pair);
-        pair.key = "class";
-        pair.value = current_kb_state[i].values[1].value; //"a"; //Get from current KB state
-        item.values.push_back(pair);
-        update_kb_srv_.request.knowledge.push_back(item);
-        update_kb_srv_.request.update_type.push_back(rosplan_knowledge_msgs::KnowledgeUpdateService::Request::REMOVE_KNOWLEDGE);
-
-        ROS_INFO("PickCrumpled: ADDING %s to %s", this->sensed_deformation_class.c_str(), current_kb_state[i].values[0].value.c_str());
-        this->logfile << "PickCrumpled: ADDING " << this->sensed_deformation_class.c_str() << " to " << current_kb_state[i].values[0].value.c_str() << std::endl;
-        //Add sensed def class
-        item.knowledge_type = rosplan_knowledge_msgs::KnowledgeItem::FACT;
-        item.attribute_name = "defstate";
-        item.values.clear();
-        pair.key = "cloth";
-        pair.value = current_kb_state[i].values[0].value; //"towel"; //Get from current KB state 
-        item.values.push_back(pair);
-        pair.key = "class";
-        pair.value = this->sensed_deformation_class;
-        item.values.push_back(pair);
-        update_kb_srv_.request.knowledge.push_back(item);
-        update_kb_srv_.request.update_type.push_back(rosplan_knowledge_msgs::KnowledgeUpdateService::Request::ADD_KNOWLEDGE);
-      }
-    }
-    return update_kb_srv_;
-    
-    // std::cout << current_kb_state[0].values.value[1] << std::endl;
-  }else
-    ROS_WARN("PickCrumpledAlgNode: Not possible to get current KB state");
-
-  // return update_kb_srv_;
-}
-
-/*void PickCrumpledAlgNode::predict_deformation_class(void)
-{
-  ROS_INFO("PickCrumpled: Predicting deformation class");
-  this->logfile << "\n--- PREDICTION OF DEFORMATION CLASS ---\n";
-
-  //PREDICT DEFORMATION CLASS for NEAREST EDGE
-  predict_deformation_class_srv_.request.layers = this->objs_layers[this->n_obj_pile]; //config_.layers; //"8l"; 
-  predict_deformation_class_srv_.request.grasp = this->nearest_edge; //short or long
-  predict_deformation_class_srv_.request.nongraspedsize = this->not_grasped_edge_size*100;
-  predict_deformation_class_srv_.request.graspedsize = this->grasped_edge_size*100;
-  predict_deformation_class_srv_.request.area = (this->grasped_edge_size*100) * (this->not_grasped_edge_size*100); //Area in centimeters
-  predict_deformation_class_srv_.request.stiffness = this->objs_stiffness[this->n_obj_pile]; //this->stiffness; 
-  predict_deformation_class_srv_.request.friction =  this->objs_friction[this->n_obj_pile]; //this->friction; 
-  if(predict_deformation_class_client_.call(predict_deformation_class_srv_))
-  {
-    std::cout << "Predicted deformation class grasping nearest edge: " << predict_deformation_class_srv_.response.predicted_def_class << std::endl;
-    this->predicted_def_class_nearest_edge = predict_deformation_class_srv_.response.predicted_def_class;
-  }
-
-  //PREDICT DEFORMATION CLASS for SECOND NEAREST EDGE
-  predict_deformation_class_srv_.request.layers = this->objs_layers[this->n_obj_pile]; //config_.layers;
-  predict_deformation_class_srv_.request.grasp = this->second_nearest_edge; //short or long
-  predict_deformation_class_srv_.request.nongraspedsize = this->grasped_edge_size*100;
-  predict_deformation_class_srv_.request.graspedsize = this->not_grasped_edge_size*100;
-  predict_deformation_class_srv_.request.area = (this->grasped_edge_size*100) * (this->not_grasped_edge_size*100); //Area in centimeters
-  predict_deformation_class_srv_.request.stiffness = this->objs_stiffness[this->n_obj_pile]; //this->stiffness; 
-  predict_deformation_class_srv_.request.friction =  this->objs_friction[this->n_obj_pile]; //this->friction; 
-  if(predict_deformation_class_client_.call(predict_deformation_class_srv_))
-  {
-    std::cout << "Predicted deformation class grasping SECOND nearest edge: " << predict_deformation_class_srv_.response.predicted_def_class << std::endl;
-    this->predicted_def_class_second_nearest_edge = predict_deformation_class_srv_.response.predicted_def_class;
-  }
-  //TO DO: Update KB, plan, and save resulting cost
-
-  //Log info to text file
-  this->logfile << "======= Predicted def class for nearest edge (" << this->nearest_edge << "): " << this->predicted_def_class_nearest_edge << std::endl;
-  this->logfile << "Preiction parameters -> Layers: " << this->objs_layers[this->n_obj_pile] << ", Grasp: " << this->nearest_edge << ", nongraspedsize: " << this->not_grasped_edge_size*100 << ", graspedsize: " << this->grasped_edge_size*100 << ", area: " << (this->grasped_edge_size*100) * (this->not_grasped_edge_size*100) << ", stiffness: " << this->stiffness << ", friction: " << this->friction << std::endl;
-  this->logfile << "======= Predicted def class for second nearest edge (" << this->second_nearest_edge << "): " << this->predicted_def_class_second_nearest_edge << std::endl;
-  this->logfile << "Preiction parameters -> Layers: " << this->objs_layers[this->n_obj_pile] << ", Grasp: " << this->second_nearest_edge << ", nongraspedsize: " << this->grasped_edge_size*100 << ", graspedsize: " << this->not_grasped_edge_size*100 << ", area: " << (this->grasped_edge_size*100) * (this->not_grasped_edge_size*100) << ", stiffness: " << this->stiffness << ", friction: " << this->friction << std::endl;
-}
-*/
-
-void PickCrumpledAlgNode::get_objects_to_pile(void)
-{
-  // Save edge sizes, stiffness of the objects to pile for predict deformation class and provide an initial plan
-  // TODO: Modify PDDL goal based on list
-  ROS_INFO("PickCrumpledAlgNode: Getting list of objects to pile");
-
-  bool known_obj;
-  std::string object_name;
-  std::string n_layers;
-  double short_edge_size, long_edge_size, stiffness, friction;
-  std::string predicted_def_class_short_edge, predicted_def_class_long_edge;
-  std::vector<rosplan_knowledge_msgs::KnowledgeItem> current_kb_state;
-
-  //Separate comma-separated strings (config object names and layers) into individual strings
-  std::stringstream ss(config_.objs_to_pile); 
-  std::string token; 
-  for (; std::getline(ss, token, ','); ) //Split comma-separated strings
-  {
-    auto start = std::find_if_not(token.begin(), token.end(), ::isspace);
-    auto end   = std::find_if_not(token.rbegin(), token.rend(), ::isspace).base();
-    token = (start < end) ? std::string(start, end) : ""; //Remove whitespaces
-    this->pddl_objs_names.push_back(token);
-  }
-  
-  std::stringstream ss2(config_.layers);
-  for (; std::getline(ss2, token, ','); )
-  {
-    auto start = std::find_if_not(token.begin(), token.end(), ::isspace);
-    auto end   = std::find_if_not(token.rbegin(), token.rend(), ::isspace).base();
-    token = (start < end) ? std::string(start, end) : ""; 
-    this->objs_layers.push_back(token);
-  }
-
-  //Check for errors in input (different number of objects and layers, non-existing objects, etc)
-  if(this->pddl_objs_names.size() != this->objs_layers.size()) 
-  {
-    ROS_WARN("PickCrumpledAlggNode: Different number of objects and layers!");
-    // this->objs_layers.push_back(this->objs_layers[0]); //Repeat first layers
-  }
-
-  for (int i = 0; i < this->pddl_objs_names.size(); i++) //Get all the cloth names and layers of the objects to pile introduced in the reconfigure
-  {
-    known_obj = false;
-    object_name = this->pddl_objs_names[i]; //pddl names (towel, check1, check2, waffle1, etc)
-    n_layers = this->objs_layers[i];
-
-    //GET OBJECT PROPERTIES
-    // if (object_name == "towel" && n_layers == "8l") {
-    if (object_name.find("towel") != std::string::npos) //if object_name contains "towel"
-    {
-      this->objs_names.push_back("towel");
-      if(n_layers == "8l")
-      {
-        known_obj = true;
-        short_edge_size = 23; //check
-        long_edge_size = 25;
-        this->short_edge_sizes.push_back(0.25);
-        this->long_edge_sizes.push_back(0.26);
-        this->objs_thickness.push_back(0.04);
-        // this->expected_pile_thickn.push_back(this->expected_pile_thickn[i]+0.04); //Add current object thickness to pile thickness
-        stiffness = 99.9;
-        friction = 80;
-        this->objs_stiffness.push_back(99.9);
-        this->objs_friction.push_back(80);
-        // this->objs_stiffness.push_back(99.9);
-        // this->objs_friction.push_back(80);
-        // object_thickness_drag = 0.055; // For drag action
-        // object_thickness_rotate = 0.07; // For rotate action
-      }
-      else if(n_layers == "12l")
-      {
-        known_obj = true;
-        stiffness = 100;
-        friction = 78;
-        short_edge_size = 15;
-        long_edge_size = 25;
-        this->objs_stiffness.push_back(100);
-        this->objs_friction.push_back(78);
-        // this->object_thickness = 0.07; // For drag action - to check
-        // this->object_thickness_rotate = 0.09; // For rotate action - to check
-      }
-    }
-    else if (object_name.find("pillowc") != std::string::npos)
-    {
-      this->objs_names.push_back("pillowc");
-      if(n_layers == "8l")
-      {
-        known_obj = true;
-        stiffness = 60.1;
-        friction = 79; //82.7;
-        // this->object_thickness_drag = 0.035; // For drag action
-        // this->object_thickness_rotate = 0.057; // For rotate action
-        short_edge_size = 22; 
-        long_edge_size = 28;
-        this->short_edge_sizes.push_back(0.22);
-        this->long_edge_sizes.push_back(0.30);
-        this->objs_thickness.push_back(0.01); //0.006?
-        this->objs_stiffness.push_back(60.1);
-        this->objs_friction.push_back(79);
-        this->object_thickness_drag = 0.032; // For drag action
-        this->object_thickness_rotate = 0.057; // For rotate action
-      } 
-      else if (n_layers == "12l") 
-      {
-        known_obj = true;
-        stiffness = 70;
-        friction = 76;
-        short_edge_size = 15; //check
-        long_edge_size = 28;
-        this->objs_stiffness.push_back(70);
-        this->objs_friction.push_back(76);
-        this->object_thickness_drag = 0.032; // For drag action
-        this->object_thickness_rotate = 0.057; // For rotate action
-      }
-    }
-    else if (object_name.find("cotnap") != std::string::npos)
-    {
-      this->objs_names.push_back("cotnap");
-      if(n_layers == "4l")
-      {
-        known_obj = true;
-        stiffness = 61.8;
-        friction = 80;
-        short_edge_size = 25;
-        long_edge_size = 25;
-        this->objs_stiffness.push_back(61.8);
-        this->objs_friction.push_back(80);
-      }
-      if(n_layers == "8l")
-      {
-        known_obj = true;
-        stiffness = 75;
-        friction = 74;
-        short_edge_size = 13;
-        long_edge_size = 25;
-        this->short_edge_sizes.push_back(0.18);
-        this->long_edge_sizes.push_back(0.25);
-        this->objs_thickness.push_back(0.006);
-        this->objs_stiffness.push_back(75);
-        this->objs_friction.push_back(74);
-        this->object_thickness_drag = 0.032; // For drag action
-        this->object_thickness_rotate = 0.057; // For rotate action
-      }
-    }
-    else if (object_name.find("linenap") != std::string::npos) 
-    {
-      this->objs_names.push_back("linenap");
-      if(n_layers == "8l")
-      {
-        known_obj = true;
-        stiffness = 74.5;
-        friction = 82;
-        short_edge_size = 13;
-        long_edge_size = 25;
-        this->objs_stiffness.push_back(74.5);
-        this->objs_friction.push_back(82);
-      }
-      else if(n_layers == "16l") 
-      {
-        known_obj = true;
-        stiffness = 80;
-        friction = 81; 
-        short_edge_size = 13;
-        long_edge_size = 13;
-        this->object_thickness_drag = 0.03; // For drag action
-        this->object_thickness_rotate = 0.06; // For rotate action
-        this->objs_stiffness.push_back(80);
-        this->objs_friction.push_back(81);
-      }
-    }
-    else if (object_name.find("waffle") != std::string::npos) 
-    {
-      this->objs_names.push_back("waffle");
-      if(n_layers == "8l")
-      {
-        known_obj = true;
-        stiffness = 93.6; //85.7; 
-        friction = 85;
-        short_edge_size = 18;
-        long_edge_size = 25;
-        // this->expected_pile_thickn.push_back(this->expected_pile_thickn[i]+0.017); //Add current object thickness to pile thickness
-        this->objs_stiffness.push_back(93.6);
-        this->objs_friction.push_back(85);
-        this->object_thickness_drag = 0.04; // For drag action
-        this->object_thickness_rotate = 0.065; // For rotate action
-      }
-    }
-    else if (object_name.find("check") != std::string::npos) 
-    {
-      this->objs_names.push_back("check");
-      if(n_layers == "6l")
-      {
-        known_obj = true;
-        stiffness = 49;
-        friction = 87; //88.4
-        short_edge_size = 16; //check
-        long_edge_size = 35; //check
-        this->object_thickness_drag = 0.03; // For drag action
-        this->object_thickness_rotate = 0.06; // For rotate action
-        this->objs_stiffness.push_back(49);
-        this->objs_friction.push_back(88);
-      }
-      else if(n_layers == "8l") //TO CHECK!!
-      {
-        known_obj = true;
-        stiffness = 70;
-        friction = 84; 
-        short_edge_size = 18;
-        long_edge_size = 25;
-        // this->expected_pile_thickn.push_back(this->expected_pile_thickn[i]+0.01); //Add current object thickness to pile thickness
-        this->object_thickness_drag = 0.03; // For drag action
-        this->object_thickness_rotate = 0.06; // For rotate action
-        this->objs_stiffness.push_back(70);
-        this->objs_friction.push_back(84);
-      }
-    }
-    else if (object_name.find("twlrag") != std::string::npos) 
-    {
-      this->objs_names.push_back("twlrag");
-      if(n_layers == "8l")
-      {
-        known_obj = true;
-        stiffness = 94; //to check (more or less than waffle?)
-        friction = 90; //to check
-        short_edge_size = 18;
-        long_edge_size = 25;
-        this->objs_stiffness.push_back(94);
-        this->objs_friction.push_back(90);
-      }
-    } 
-    else if (object_name.find("linrag") != std::string::npos) 
-    {
-      this->objs_names.push_back("linrag");
-      if(n_layers == "8l")
-      {
-        known_obj = true;
-        stiffness = 65; //to check (more or less than check and pillowc?)
-        friction = 83; //to check
-        short_edge_size = 18;
-        long_edge_size = 25;
-        this->objs_stiffness.push_back(65);
-        this->objs_friction.push_back(83);
-      }
-    } 
-    
-    //PREDICT DEFORMATION CLASSES for both edges of the current object
-    if(known_obj)
-    {
-      //Deformation class grasping short edge
-      predict_deformation_class_srv_.request.layers = n_layers; 
-      predict_deformation_class_srv_.request.grasp = "short";
-      predict_deformation_class_srv_.request.nongraspedsize = long_edge_size;
-      predict_deformation_class_srv_.request.graspedsize = short_edge_size;
-      predict_deformation_class_srv_.request.area = long_edge_size * short_edge_size;
-      predict_deformation_class_srv_.request.stiffness = stiffness; 
-      predict_deformation_class_srv_.request.friction =  friction; 
-      if(predict_deformation_class_client_.call(predict_deformation_class_srv_))
-      {
-        std::cout << "Predicted deformation class grasping SHORT edge of " << object_name << " " << n_layers << " is: " << predict_deformation_class_srv_.response.predicted_def_class << std::endl;
-        predicted_def_class_short_edge = predict_deformation_class_srv_.response.predicted_def_class;
-        this->predicted_def_class_short_edge_v.push_back(predicted_def_class_short_edge);
-      }
-      //Deformation class grasping long edge
-      predict_deformation_class_srv_.request.layers = n_layers; 
-      predict_deformation_class_srv_.request.grasp = "long";
-      predict_deformation_class_srv_.request.nongraspedsize = short_edge_size;
-      predict_deformation_class_srv_.request.graspedsize = long_edge_size;
-      predict_deformation_class_srv_.request.area = long_edge_size * short_edge_size;
-      predict_deformation_class_srv_.request.stiffness = stiffness; 
-      predict_deformation_class_srv_.request.friction =  friction; 
-      if(predict_deformation_class_client_.call(predict_deformation_class_srv_))
-      {
-        std::cout << "Predicted deformation class grasping LONG edge of " << object_name << " " << n_layers << " is: " << predict_deformation_class_srv_.response.predicted_def_class << std::endl;
-        predicted_def_class_long_edge = predict_deformation_class_srv_.response.predicted_def_class;
-        this->predicted_def_class_long_edge_v.push_back(predicted_def_class_long_edge);
-      }
-    
-    
-    //UPDATE KNOWLEDGE BASE with deformation classes of all objects to pile (obj_grasp_class garment grasp defclass)
-      get_kb_state_srv_.request.predicate_name = "obj_grasp_class"; 
-      if(get_kb_state_client_.call(get_kb_state_srv_))
-      {
-        current_kb_state = get_kb_state_srv_.response.attributes;
-        ROS_INFO("PickCrumpledAlgnode: Update obj_grasp_class");
-
-        for(size_t i=0; i<current_kb_state.size(); i++) {
-          if(current_kb_state[i].values[0].value == object_name) //Update only the CURRENT object deformation classes
-          {
-            //Remove previous def class
-            ROS_INFO("PickCrumpled: REMOVING %s to %s edge of %s", current_kb_state[i].values[2].value.c_str(), current_kb_state[i].values[1].value.c_str(), current_kb_state[i].values[0].value.c_str());
-            this->logfile << "PickCrumpled: REMOVING " << current_kb_state[i].values[2].value.c_str() << " to " << current_kb_state[i].values[1].value.c_str() << " edge of " << current_kb_state[i].values[0].value.c_str() << std::endl;
-            rosplan_knowledge_msgs::KnowledgeItem item;
-            item.knowledge_type = rosplan_knowledge_msgs::KnowledgeItem::FACT;
-            item.attribute_name = "obj_grasp_class";
-            item.values.clear();
-            diagnostic_msgs::KeyValue pair;
-            pair.key = "garment";
-            pair.value = current_kb_state[i].values[0].value; //towel, waffle1, waffle2, checkered1...
-            item.values.push_back(pair);
-            pair.key = "grasp";
-            pair.value = current_kb_state[i].values[1].value; //long or short
-            item.values.push_back(pair);
-            pair.key = "defclass";
-            pair.value = current_kb_state[i].values[2].value; //A, B or C
-            item.values.push_back(pair);
-            update_kb_srv_.request.knowledge.push_back(item);
-            update_kb_srv_.request.update_type.push_back(rosplan_knowledge_msgs::KnowledgeUpdateService::Request::REMOVE_KNOWLEDGE);
-
-            //UPDATE PREDICTED DEF CLASS FOR BOTH EDGES
-            if(current_kb_state[i].values[1].value == "short")
-            {
-              ROS_INFO("PickCrumpled: ADDING %s to %s edge of %s", predicted_def_class_short_edge.c_str(), current_kb_state[i].values[1].value.c_str(), current_kb_state[i].values[0].value.c_str());
-              this->logfile << "PickCrumpled: ADDING " << predicted_def_class_short_edge.c_str() << " to " << current_kb_state[i].values[1].value.c_str() << " edge of " << current_kb_state[i].values[0].value.c_str() << std::endl;
-              //Add predicted def class
-              item.knowledge_type = rosplan_knowledge_msgs::KnowledgeItem::FACT;
-              item.attribute_name = "obj_grasp_class";
-              item.values.clear();
-              pair.key = "garment";
-              pair.value = current_kb_state[i].values[0].value; //towel, waffle1, waffle2, checkered1...
-              item.values.push_back(pair);
-              pair.key = "grasp";
-              pair.value = current_kb_state[i].values[1].value; //short or long" 
-              item.values.push_back(pair);
-              pair.key = "defclass";
-              pair.value = predicted_def_class_short_edge; 
-              item.values.push_back(pair);
-              update_kb_srv_.request.knowledge.push_back(item);
-              update_kb_srv_.request.update_type.push_back(rosplan_knowledge_msgs::KnowledgeUpdateService::Request::ADD_KNOWLEDGE);
-            }
-            else if(current_kb_state[i].values[1].value == "long") 
-            {
-              ROS_INFO("PickCrumpled: ADDING %s to %s edge of %s", predicted_def_class_long_edge.c_str(), current_kb_state[i].values[1].value.c_str(), current_kb_state[i].values[0].value.c_str());
-              this->logfile << "PickCrumpled: ADDING " << predicted_def_class_long_edge.c_str() << " to " << current_kb_state[i].values[1].value.c_str() << " edge of " << current_kb_state[i].values[0].value.c_str() << std::endl;
-              //Add predicted def class
-              item.knowledge_type = rosplan_knowledge_msgs::KnowledgeItem::FACT;
-              item.attribute_name = "obj_grasp_class";
-              item.values.clear();
-              pair.key = "garment";
-              pair.value = current_kb_state[i].values[0].value; //towel, waffle1, waffle2, checkered1...
-              item.values.push_back(pair);
-              pair.key = "grasp";
-              pair.value = current_kb_state[i].values[1].value; //short or long" 
-              item.values.push_back(pair);
-              pair.key = "defclass";
-              pair.value = predicted_def_class_long_edge; 
-              item.values.push_back(pair);
-              update_kb_srv_.request.knowledge.push_back(item);
-              update_kb_srv_.request.update_type.push_back(rosplan_knowledge_msgs::KnowledgeUpdateService::Request::ADD_KNOWLEDGE);
-            }
-          } // close if current object
-        } //close for of KB
-      }else
-        ROS_WARN("PickCrumpledAlgNode: Not possible to get current KB state");
-    
-      if(update_kb_client_.call(update_kb_srv_))
-      {
-        ROS_WARN("PickCrumpledAlgNode: Updating knowledge Base!");                           
-      }else
-        ROS_WARN("PickCrumpledAlgNode: Knowledge Base NOT updated!");
-    }//close if known_obj
-    else
-      ROS_WARN("Unkown object properties for: %s + %s", object_name.c_str(), n_layers.c_str());
-
-  } //close for of list of objects to pile
-  // std::cout << " Pile thickness: " << this->expected_pile_thickn[0] << std::endl;
-  // this->expected_pile_thickn.erase(this->expected_pile_thickn.begin()); //delete first element (0)
-  // std::cout << " Pile thickness: " << this->expected_pile_thickn[0] << std::endl;
-}
  
-void PickCrumpledAlgNode::update_costs(void) //Update table of costs for the next object to pile
-{ 
-  ROS_INFO("PickCrumpledAlgNode: Updating KB cost table");
-  this->logfile << "\n--- UPDATING KB: place_succ ---\n";
-
-  int new_cost;
-
-  //Compute new cost
-  compute_cost_entry_srv_.request.cost_table = this->cost_table;
-  compute_cost_entry_srv_.request.def_class = this->sensed_deformation_class;
-  compute_cost_entry_srv_.request.placing_str = this->placing_strategy;
-  compute_cost_entry_srv_.request.placing_qual = this->placing_quality;
-  if(compute_cost_entry_client_.call(compute_cost_entry_srv_))
-  {
-    this->cost_table = compute_cost_entry_srv_.response.new_cost_table; //Update cost table
-    new_cost = compute_cost_entry_srv_.response.new_cost;
-  }else
-    ROS_ERROR("PickCrumpled: Unable to call /compute_new_cost service");
-
-  //Update KB function place_succ ?cloth - garment ?class - defclass ?place - placing - entry of the executed state-action (defclass-placement) of the next object
-  //Add new cost to ALL the cloth-to-cloth tables (all objects except the first one)
-  for(size_t i=1; i<this->pddl_objs_names.size(); i++) { //Better get state of current kb?
-    ROS_INFO("PickCrumpled: ADDING new cost %d to %s - %s of %s", new_cost, this->sensed_deformation_class.c_str(), this->placing_strategy.c_str(), this->pddl_objs_names[i].c_str());
-    this->logfile << "ADDING new cost " << new_cost << " to " << this->sensed_deformation_class.c_str() << "-" << this->placing_strategy.c_str() << " of " << this->pddl_objs_names[i].c_str() << std::endl;
-    rosplan_knowledge_msgs::KnowledgeItem item;
-    item.knowledge_type = rosplan_knowledge_msgs::KnowledgeItem::FUNCTION;
-    item.attribute_name = "place_succ";
-    item.values.clear();
-    diagnostic_msgs::KeyValue pair;
-    pair.key = "garment";
-    pair.value = this->pddl_objs_names[i]; //Next objects to pile (towel, twlrag, waffle1, waffle2, checkered1...)
-    item.values.push_back(pair);
-    pair.key = "defclass";
-    pair.value = this->sensed_deformation_class; //Last sensed deformation class (A, B or C)
-    item.values.push_back(pair);
-    pair.key = "placing";
-    pair.value = this->placing_strategy; //Last placing action (placevert, placediag or placerot)
-    item.values.push_back(pair);
-    item.function_value = new_cost; //Commputed cost
-    update_kb_srv_.request.knowledge.push_back(item);   
-    update_kb_srv_.request.update_type.push_back(rosplan_knowledge_msgs::KnowledgeUpdateService::Request::ADD_KNOWLEDGE);
-  }
-
-  //Update Knowledge Base
-  if(update_kb_client_.call(update_kb_srv_))
-  {
-    ROS_WARN("PickCrumpledAlgNode: Updating knowledge Base!");                           
-  }else
-    ROS_WARN("PickCrumpledAlgNode: Knowledge Base NOT updated!");
-
-  //Save new cost table in logfile
-  this->logfile << "New cost table: \n";
-  for (size_t i = 0; i < this->cost_table.size(); ++i) {
-    this->logfile << this->cost_table[i];
-    if ((i + 1) % 3 == 0){
-        this->logfile << "\n";  // Newline every 3 elements for 3x3 format
-        this->planningfile << "\n";
-    }else{
-        this->logfile << " ";
-        this->planningfile << " ";
-    }
-  }
-  this->logfile << std::endl;
-    // this->logfile << "New cost table: " << this->cost_table << std::endl;
-}
-
-
 /* PERCEPTION FUNCTIONS */
 // Set and publish handeye transform
 void PickCrumpledAlgNode::handeye_frame_pub(const ros::TimerEvent& event)
@@ -2934,8 +1041,6 @@ void PickCrumpledAlgNode::corners_callback(const visualization_msgs::MarkerArray
           // UPDATE workspace
           check_worspaces(disGarmenCenter); //Get workspace based on distance of garment center
           this->get_garment_position=false;
-          // PREDICT DEF CLASS
-          // predict_deformation_class(); //Predict deformation classes for both edges
           this->state=UPDATE_INIT_ROSPLAN_KB; //Update predicates garment_at (workspace) and at_pose (nearest edge)
           this->config_.ok=false;
           this->process_grasp_pointcloud=false;
@@ -3083,6 +1188,35 @@ void PickCrumpledAlgNode::pile_height_marker_callback(const visualization_msgs::
   }
 }
 
+void PickCrumpledAlgNode::get_grasp_point(const geometry_msgs::PoseStamped grasp_pose)
+{
+  geometry_msgs::PoseStamped grasp_pose;
+  kortex_driver::Pose grasp_pile_height_point;
+
+  visualization_msgs::Marker marker;
+  marker.header.frame_id = "base_link";
+  marker.id = 0;
+  marker.type = visualization_msgs::Marker::SPHERE;
+  marker.scale.x=0.01;
+  marker.scale.y=0.01;
+  marker.scale.z=0.01;
+  marker.color.r = 0.0f;
+  marker.color.g = 1.0f;
+  marker.color.b = 1.0f;
+  marker.color.a = 1.0;
+  marker.lifetime = ros::Duration();
+
+  if(this->get_test_grasp_point)
+  {
+    // this->pre_grasp_center
+    marker.pose.position.x = this->pre_grasp_center.x;
+    marker.pose.position.y = this->pre_grasp_center.y;
+    marker.pose.position.z = this->pre_grasp_center.z;
+    garment_marker_publisher.publish(marker);
+  }
+  
+
+}
 //------------------------------------------------------------------------------------
 /*  [subscriber callbacks] */
 void PickCrumpledAlgNode::base_feedback_callback(const kortex_driver::BaseCyclic_Feedback::ConstPtr& msg)
@@ -3139,54 +1273,6 @@ void PickCrumpledAlgNode::action_topic_mutex_exit(void)
   pthread_mutex_unlock(&this->action_topic_mutex_);
 }
 
-void PickCrumpledAlgNode::planner_topic_callback(const std_msgs::String::ConstPtr& msg)
-{
-  ROS_INFO("PickCrumpledAlgNode: New plan received");
-  this->logfile << "\n--- NEW PLAN RECEIVED --- \n";
-  this->logfile << "New plan: " << msg->data << std::endl;
-
-  std::cout << "New plan: " << msg->data << std::endl;
-  std::string current_plan = msg->data;
-
-  //Save plan cost and time spend in planning
-  std::string filepath = "/home/userlab/iri-lab/iri_ws/src/PickCrumpled/pnp_planner/pddl/plan.pddl";
-  std::ifstream file(filepath);
-  std::string line;
-  // PlanStats stats;
-  double cost = -1;
-  double time = -1;
-
-  // if (!file.is_open()) {
-  //   std::cerr << "Could not open planner output file: " << filepath << std::endl;
-  //   return stats;
-  // }
-
-  while (std::getline(file, line)) {
-    // Look for "plan cost:"
-    size_t pos = line.find("plan cost:");
-    if (pos != std::string::npos) {
-      std::string num = line.substr(pos + 11);  // 11 = length of "plan cost: "
-      cost = std::stod(num);
-      std::cout << "COOOOOOOST:  " << cost << std::endl;
-    }
-
-    // Look for "seconds total time"
-    pos = line.find("seconds total time");
-    if (pos != std::string::npos) {
-      size_t start = line.rfind(" ", pos - 2); // Find space before the number
-      if (start != std::string::npos) {
-        std::string num = line.substr(start + 1, pos - start - 1);
-        time = std::stod(num);
-        std::cout << "TIIIIIME:  " << time << std::endl;
-      }
-    }
-  }
-  this->planningfile << current_plan << std::endl;
-  this->planningfile << "plan cost: " << cost << std::endl;
-  this->planningfile << "time spend: " << time << std::endl;
-  this->planningfile << "----------------------------------------------------------------" << std::endl;
-
-}
 
 /*  [service callbacks] */
 // void PickCrumpledAlgNode::testCallback(const boost::shared_ptr<const rosplan_dispatch_msgs::DispatchService::Response> &response)
