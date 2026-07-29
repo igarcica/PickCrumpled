@@ -52,6 +52,7 @@ PickCrumpledAlgNode::PickCrumpledAlgNode(void) :
   this->pre_grasp_center.theta_y = this->pre_grasp_corner[4];
   this->pre_grasp_center.theta_z = this->pre_grasp_corner[5];
 
+  //Starting point to do a top-down grasp
   this->pre_grasp_pile_height_point.x = 0.53;
   this->pre_grasp_pile_height_point.y = 0.0;
   this->pre_grasp_pile_height_point.z = 0.4;
@@ -251,11 +252,11 @@ void PickCrumpledAlgNode::mainNodeThread(void)
                         }
       break;
 
-      case ROTATE_POS: ROS_DEBUG("PickCrumpledAlgNode: state DRAG_ROTATE_POS");
+      case ROTATE_POS: ROS_DEBUG("PickCrumpledAlgNode: state R0TATE_POS");
                       {
-                        ROS_INFO("PickCrumpledSM: Sending to DRAG_ROTATE position.");
+                        ROS_INFO("PickCrumpledSM: Sending to ROTATE_POS position.");
                         this->logfile << "State: ROTATE_POS" << std::endl;
-                        this->grasp_pile_height_point.z = this->grasp_pile_height_point.z + 0.05;
+                        this->grasp_pile_height_point.z = this->grasp_pile_height_point.z + 0.05; //WRIST 5cm above the point (note that is based on grasp_pile_height_point and not on current point)
                         std::cout << "\033[1;36m PRE-GRASP: -> \033[1;36m  x: " << this->grasp_pile_height_point.x << ", y: " << this->grasp_pile_height_point.y << ", z: " << this->grasp_pile_height_point.z << std::endl;
                         this->success &= send_cartesian_pose(this->grasp_pile_height_point);
                         if (this->success)
@@ -280,19 +281,37 @@ void PickCrumpledAlgNode::mainNodeThread(void)
                           }
       break;
 
-      case POST_GRASP: ROS_DEBUG("PickCrumpledAlgNode: state POST GRASP");
-                       {
-                          this->success &= home_the_robot(); // Move the robot to the Home position with an Action
-                          if (this->success)
-                          {
-                            this->state=IDLE;
-                            ros::Duration(0.5).sleep();
-                          }else{
-                            ROS_WARN("PickCrumpledAlgNode: Could not execute HOME action");
-                            this->state=POST_GRASP;
-                          }
-                       }
+      case POST_GRASP: ROS_DEBUG("PickCrumpledAlgNode: state POST_GRASP");
+                      {
+                        ROS_INFO("PickCrumpledSM: Sending to POST_GRASP position.");
+                        this->logfile << "State: POST_GRASP" << std::endl;
+                        this->grasp_pile_height_point.z = this->grasp_pile_height_point.z + 0.15; //Movr arm 10cm up
+                        std::cout << "\033[1;36m PRE-GRASP: -> \033[1;36m  x: " << this->grasp_pile_height_point.x << ", y: " << this->grasp_pile_height_point.y << ", z: " << this->grasp_pile_height_point.z << std::endl;
+                        this->success &= send_cartesian_pose(this->grasp_pile_height_point);
+                        if (this->success)
+                        {
+                          ROS_INFO("Success ROTATE POS");
+                          this->state=IDLE;
+                          ros::Duration(0.5).sleep();
+                        }
+                        else
+                          this->state=IDLE;
+                      }
       break;
+
+      // case POST_GRASP: ROS_DEBUG("PickCrumpledAlgNode: state POST GRASP");
+      //                  {
+      //                     this->success &= home_the_robot(); // Move the robot to the Home position with an Action
+      //                     if (this->success)
+      //                     {
+      //                       this->state=IDLE;
+      //                       ros::Duration(0.5).sleep();
+      //                     }else{
+      //                       ROS_WARN("PickCrumpledAlgNode: Could not execute HOME action");
+      //                       this->state=POST_GRASP;
+      //                     }
+      //                  }
+      // break;
                   
 
       // // POST-GRASP POSITION
@@ -566,9 +585,6 @@ void PickCrumpledAlgNode::node_config_update(Config &config, uint32_t level)
     this->start_demo=true;
     ROS_INFO("PickCrumpledAlgNode: Starting demo with selected gripper apperture and placing strategy");
     this->close_gripper=config.close_gripper;
-    this->n_obj_pile = 0; //Place just one object
-    this->objs_names.push_back(config.objs_to_pile); //obtain form reconfigure
-    this->objs_layers.push_back(config.layers);
     if(config.vertical_place)
       {
         this->placing_strategy="placevert";//2
@@ -598,14 +614,14 @@ void PickCrumpledAlgNode::node_config_update(Config &config, uint32_t level)
   }
   
   // Select grasping point
-  if(config.get_grasp_point)
+  if(config.select_grasp_point)
   {
     this->short_edge_sizes.push_back(config.garment_edge_size); //for placing positions in diagonal and rotating
     this->long_edge_sizes.push_back(config.garment_edge_size);
     this->process_grasp_pointcloud=true;
     this->get_garment_position=true;
     //this->get_garment_angle=true;
-    config.get_grasp_point=false;
+    config.select_grasp_point=false;
     // this->garment_edge_size=config.garment_edge_size;
   }
 
@@ -628,9 +644,6 @@ void PickCrumpledAlgNode::node_config_update(Config &config, uint32_t level)
   {
     this->pddl_demo=false;
     this->start_experiments=true;
-    this->n_obj_pile = 0; //Place just one object
-    this->objs_names.push_back(config.objs_to_pile); //obtain form reconfigure
-    this->objs_layers.push_back(config.layers);
     if(config.vertical_place)
     {
       this->placing_strategy="placevert"; //2
@@ -861,7 +874,7 @@ void PickCrumpledAlgNode::corners_callback(const visualization_msgs::MarkerArray
 
     
     if(this->get_garment_position)
-    // if(config_.get_grasp_point) //for planner
+    // if(config_.select_grasp_point) //for planner
     {
       //-------GRASPING POSITION-------
       visualization_msgs::Marker marker;
@@ -960,7 +973,7 @@ void PickCrumpledAlgNode::corners_callback(const visualization_msgs::MarkerArray
 
       //--- GET PILE HEIGHT AND OBJECT'S EDGE SIZES ---
       this->pile_height = 0.0;
-      this->get_pile_height = true;
+      // this->get_pile_height = true;
       //this->garment_edge_size = garment_edge.data;
       this->grasped_edge_size = lengths[nearestIndex];
       this->not_grasped_edge_size = lengths[secondNearestIndex];
@@ -1023,7 +1036,7 @@ void PickCrumpledAlgNode::corners_callback(const visualization_msgs::MarkerArray
       if(valid)
         ROS_WARN("good");
       
-      config_.get_grasp_point = false;
+      config_.select_grasp_point = false;
 
       if(this->pddl_demo)
       {
@@ -1190,8 +1203,8 @@ void PickCrumpledAlgNode::pile_height_marker_callback(const visualization_msgs::
 
 void PickCrumpledAlgNode::get_grasp_point(const geometry_msgs::PoseStamped grasp_pose)
 {
-  geometry_msgs::PoseStamped grasp_pose;
-  kortex_driver::Pose grasp_pile_height_point;
+  // geometry_msgs::PoseStamped grasp_pose;
+  // kortex_driver::Pose grasp_pile_height_point;
 
   visualization_msgs::Marker marker;
   marker.header.frame_id = "base_link";

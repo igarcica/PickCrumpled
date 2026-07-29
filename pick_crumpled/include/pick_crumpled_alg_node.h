@@ -212,7 +212,7 @@ class PickCrumpledAlgNode : public algorithm_base::IriBaseAlgorithm<PickCrumpled
     //void select_grasp_point();
     void corners_callback(const visualization_msgs::MarkerArray::ConstPtr& msg);
     void pile_height_marker_callback(const visualization_msgs::Marker::ConstPtr& msg);
-    void PickCrumpledAlgNode::get_grasp_point(const geometry_msgs::PoseStamped grasp_pose);
+    void get_grasp_point(const geometry_msgs::PoseStamped grasp_pose);
     
 
     void get_params(void);
@@ -288,7 +288,6 @@ class PickCrumpledAlgNode : public algorithm_base::IriBaseAlgorithm<PickCrumpled
     double friction;
     
     int n_obj_pile; //current piled object
-    std::vector<std::string> objs_names, pddl_objs_names, objs_layers; //list of object names to pile
     std::vector<double> short_edge_sizes, long_edge_sizes, objs_stiffness, objs_friction, objs_thickness; //stiffness, friction and thicnkess of objects to pile
     
 

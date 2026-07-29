@@ -1,203 +1,22 @@
 ---------------------------------------
 
  ======= Initialized pick_crumpled_alg_node 
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-State: HOME
 State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0.05, 0.2, 179, 0, 90)
+Sending to: -> (0.53, 0, 0.4, 179, 0, 90)
 State: PRE_ROTATE
-Sending to: -> (0.429631, 0.00275316, 0.484638, 179, 0, 90)
-State: ROTATE_POS
-Sending to: -> (0.556724, 0.204074, 0.211685, 179, 0, 90)
-State: END
+Sending to: -> (0.70975, -0.188516, 0.165852, 179, 0, 90)
 Closing pick_crumpled_alg_node
 ---------------------------------------
 
  ======= Initialized pick_crumpled_alg_node 
-State: HOME
 State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0.05, 0.2, 179, 0, 90)
+Sending to: -> (0.53, 0, 0.4, 179, 0, 90)
 State: PRE_ROTATE
-Sending to: -> (0.499895, 0.0107704, 0.455659, 179, 0, 90)
+Sending to: -> (0.511773, -0.193249, 0.195056, 179, 0, 90)
 State: ROTATE_POS
-Sending to: -> (0.609906, 0.186664, 0.186453, 179, 0, 90)
-State: END
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-State: HOME
-State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0.05, 0.2, 179, 0, 90)
-State: PRE_ROTATE
-Sending to: -> (0.528071, 0.232729, 0.252956, 179, 0, 90)
-State: ROTATE_POS
-Sending to: -> (0.528071, 0.232729, 0.222956, 179, 0, 90)
-State: END
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-State: HOME
-State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0.05, 0.4, 179, 0, 90)
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-State: HOME
-State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0.05, 0.3, 179, 0, 90)
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-State: HOME
-State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0.05, 0.2, 179, 0, 90)
-State: PRE_ROTATE
-Sending to: -> (0.536634, 0.240802, 0.321548, 179, 0, 90)
-State: ROTATE_POS
-Sending to: -> (0.536634, 0.240802, 0.221548, 179, 0, 90)
+Sending to: -> (0.511773, -0.193249, 0.145056, 179, 0, 90)
 State: POST_GRASP
-Sending to: -> (0.536591, 0.240783, 0.3) 
-State: END
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-State: HOME
-State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0.05, 0.2, 179, 0, 90)
-State: PRE_ROTATE
-Sending to: -> (0.493407, 0.186924, 0.312623, 179, 0, 90)
-State: ROTATE_POS
-Sending to: -> (0.493407, 0.186924, 0.212623, 179, 0, 90)
-State: HOME
-State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0.05, 0.2, 179, 0, 90)
-State: PRE_ROTATE
-Sending to: -> (0.493407, 0.186924, 0.312623, 179, 0, 90)
-State: ROTATE_POS
-Sending to: -> (0.493407, 0.186924, 0.212623, 179, 0, 90)
-State: HOME
-State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0.05, 0.2, 179, 0, 90)
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-State: HOME
-State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0.05, 0.2, 179, 0, 90)
-State: PRE_ROTATE
-Sending to: -> (0.548064, 0.174758, 0.208516, 179, 0, 90)
-State: ROTATE_POS
-Sending to: -> (0.548064, 0.174758, 0.108516, 179, 0, 90)
-State: HOME
-State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0.05, 0.2, 179, 0, 90)
-State: PRE_ROTATE
-Sending to: -> (0.586656, 0.0811953, 0.270993, 179, 0, 90)
-State: ROTATE_POS
-Sending to: -> (0.586656, 0.0811953, 0.170993, 179, 0, 90)
-State: HOME
-State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0.05, 0.2, 179, 0, 90)
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-State: HOME
-State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0, 0.4, 179, 0, 90)
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
+Sending to: -> (0.511773, -0.193249, 0.295056, 179, 0, 90)
 Closing pick_crumpled_alg_node
 ---------------------------------------
 
@@ -205,67 +24,8 @@ Closing pick_crumpled_alg_node
 State: PRE_PRE_ROTATE
 Sending to: -> (0.53, 0, 0.4, 179, 0, 90)
 State: PRE_ROTATE
-Sending to: -> (0.517591, 0.244196, 0.239072, 179, 0, 90)
+Sending to: -> (0.529585, -0.192702, 0.195293, 179, 0, 90)
 State: ROTATE_POS
-Sending to: -> (0.517591, 0.244196, 0.139072, 179, 0, 90)
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0, 0.4, 179, 0, 90)
-State: PRE_ROTATE
-Sending to: -> (0.69302, -0.0370651, 0.336201, 179, 0, 90)
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0, 0.4, 179, 0, 90)
-State: PRE_ROTATE
-Sending to: -> (0.44741, 0.194772, 0.260269, 179, 0, 90)
-State: ROTATE_POS
-Sending to: -> (0.44741, 0.194772, 0.110269, 179, 0, 90)
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0, 0.4, 179, 0, 90)
-State: PRE_ROTATE
-Sending to: -> (0.569839, 0.326455, 0.224213, 179, 0, 90)
-State: ROTATE_POS
-Sending to: -> (0.569839, 0.326455, 0.174213, 179, 0, 90)
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0, 0.4, 179, 0, 90)
-State: PRE_ROTATE
-Sending to: -> (0.587252, 0.024447, 0.210935, 179, 0, 90)
-State: ROTATE_POS
-Sending to: -> (0.587252, 0.024447, 0.160935, 179, 0, 90)
-State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0, 0.4, 179, 0, 90)
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0, 0.4, 179, 0, 90)
-State: PRE_ROTATE
-Sending to: -> (0.528049, 0.154001, 0.233679, 179, 0, 90)
-State: ROTATE_POS
-Sending to: -> (0.528049, 0.154001, 0.183679, 179, 0, 90)
-State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0, 0.4, 179, 0, 90)
-State: PRE_ROTATE
-Sending to: -> (0.45895, 0.274481, 0.210035, 179, 0, 90)
-State: ROTATE_POS
-Sending to: -> (0.45895, 0.274481, 0.160035, 179, 0, 90)
-Closing pick_crumpled_alg_node
----------------------------------------
-
- ======= Initialized pick_crumpled_alg_node 
-Closing pick_crumpled_alg_node
+Sending to: -> (0.529585, -0.192702, 0.145293, 179, 0, 90)
+State: POST_GRASP
+Sending to: -> (0.529585, -0.192702, 0.295293, 179, 0, 90)

@@ -13,8 +13,6 @@
 <!-- TIAGO PCL TUTORIAL -->
   <include file="$(find vision_pick_crumpled)/launch/pickcrumpled.launch"> </include>
 
-  <node name="sense_deformation_class" pkg="pick_crumpled" type="sense_def_class.py" output="screen" />
-  <!--<remap from="/different_topic" to="/needed_topic"/> -->
 
 
 </launch>

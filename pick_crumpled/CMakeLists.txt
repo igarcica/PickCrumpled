@@ -32,9 +32,9 @@ find_package(catkin REQUIRED COMPONENTS rospy iri_base_algorithm iri_kinova_line
 # )
 
 ## Generate actions in the 'action' folder
-add_action_files(
-   FILES activateSM.action
-)
+# add_action_files(
+#    FILES activateSM.action
+# )
 
 ## Generate added messages and services with any dependencies listed here
  generate_messages(
