@@ -1,31 +1,353 @@
 ---------------------------------------
 
  ======= Initialized pick_crumpled_alg_node 
-State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0, 0.4, 179, 0, 90)
-State: PRE_ROTATE
-Sending to: -> (0.70975, -0.188516, 0.165852, 179, 0, 90)
 Closing pick_crumpled_alg_node
 ---------------------------------------
 
  ======= Initialized pick_crumpled_alg_node 
-State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0, 0.4, 179, 0, 90)
-State: PRE_ROTATE
-Sending to: -> (0.511773, -0.193249, 0.195056, 179, 0, 90)
-State: ROTATE_POS
-Sending to: -> (0.511773, -0.193249, 0.145056, 179, 0, 90)
-State: POST_GRASP
-Sending to: -> (0.511773, -0.193249, 0.295056, 179, 0, 90)
 Closing pick_crumpled_alg_node
 ---------------------------------------
 
  ======= Initialized pick_crumpled_alg_node 
-State: PRE_PRE_ROTATE
-Sending to: -> (0.53, 0, 0.4, 179, 0, 90)
-State: PRE_ROTATE
-Sending to: -> (0.529585, -0.192702, 0.195293, 179, 0, 90)
-State: ROTATE_POS
-Sending to: -> (0.529585, -0.192702, 0.145293, 179, 0, 90)
-State: POST_GRASP
-Sending to: -> (0.529585, -0.192702, 0.295293, 179, 0, 90)
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.748085, -0.106287, 0.07, 0, -125, 130)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.748085, -0.106287, 0.12, 0, -125, 130)
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.68509, -0.0379168, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.68509, -0.0379168, 0.12, 0, -125, 179)
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.703274, -0.0402563, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.703274, -0.0402563, 0.12, 0, -125, 179)
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.692065, -0.025251, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.742065, -0.025251, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.742065, -0.025251, 0.12, 0, -125, 179)
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.459423, 0.219961, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.509423, 0.219961, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.509423, 0.219961, 0.12, 0, -125, 179)
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.464995, 0.230379, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.514995, 0.230379, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.514995, 0.230379, 0.12, 0, -125, 179)
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.460536, 0.214938, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.510536, 0.214938, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.510536, 0.214938, 0.12, 0, -125, 179)
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.710454, -0.0478426, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.760454, -0.0478426, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.760454, -0.0478426, 0.12, 0, -125, 179)
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.709813, -0.0316473, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.759813, -0.0316473, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.759813, -0.0316473, 0.12, 0, -125, 179)
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.704667, -0.0522501, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.754667, -0.0522501, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.754667, -0.0522501, 0.12, 0, -125, 179)
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.73504, -0.178457, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.78504, -0.178457, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.78504, -0.178457, 0.12, 0, -125, 179)
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.710391, -0.0904773, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.760391, -0.0904773, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.760391, -0.0904773, 0.12, 0, -125, 179)
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.611283, -0.209196, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.661283, -0.209196, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.661283, -0.209196, 0.1, 0, -125, 179)
+State: FOLDING
+Sending to: -> (0.523148, 0.079717, 0.1, 0, -125, 179)
+State: OPEN_GRIPPER
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.63421, -0.185008, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.68421, -0.185008, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.68421, -0.185008, 0.1, 0, -125, 179)
+State: FOLDING
+Sending to: -> (0.508589, 0.120111, 0.1, 0, -125, 179)
+State: OPEN_GRIPPER
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.363899, -0.108791, 0.07, 0, -125, 179)
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.775998, -0.219657, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.825998, -0.219657, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.825998, -0.219657, 0.1, 0, -125, 179)
+State: FOLDING
+Sending to: -> (0.525094, 0.12368, 0.1, 0, -125, 179)
+State: OPEN_GRIPPER
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.776135, -0.196018, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.826135, -0.196018, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.826135, -0.196018, 0.1, 0, -125, 179)
+State: FOLDING
+Sending to: -> (0.536278, 0.146906, 0.1, 0, -125, 179)
+State: OPEN_GRIPPER
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.776611, -0.203815, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.826611, -0.203815, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.826611, -0.203815, 0.1, 0, -125, 179)
+State: FOLDING
+Sending to: -> (0.525716, 0.067939, 0.1, 0, -125, 179)
+State: OPEN_GRIPPER
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.825752, -0.210032, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.875752, -0.210032, 0.07, 0, -125, 179)
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.758749, -0.203573, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.808749, -0.203573, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.808749, -0.203573, 0.1, 0, -125, 179)
+State: FOLDING
+Sending to: -> (0.447788, 0.109324, 0.1, 0, -125, 179)
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.722983, -0.201475, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.772983, -0.201475, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.772983, -0.201475, 0.1, 0, -125, 179)
+State: FOLDING
+Sending to: -> (0.454816, 0.11431, 0.1, 0, -125, 179)
+State: OPEN_GRIPPER
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.632451, -0.175105, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.682451, -0.175105, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.682451, -0.175105, 0.1, 0, -125, 179)
+State: FOLDING
+Sending to: -> (0.872165, 0.0633807, 0.1, 0, -125, 179)
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.737061, -0.198232, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.787061, -0.198232, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.787061, -0.198232, 0.1, 0, -125, 179)
+State: FOLDING
+Sending to: -> (0.475317, 0.125795, 0.1, 0, -125, 179)
+State: OPEN_GRIPPER
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.615708, -0.18071, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.665708, -0.18071, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.665708, -0.18071, 0.1, 0, -125, 179)
+State: FOLDING
+Sending to: -> (0.47767, 0.133228, 0.1, 0, -125, 179)
+State: OPEN_GRIPPER
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.620184, -0.174136, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.670184, -0.174136, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.670184, -0.174136, 0.1, 0, -125, 179)
+State: FOLDING
+Sending to: -> (0.482588, 0.105455, 0.1, 0, -125, 179)
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.879134, -0.160178, 0.07, 0, -125, 179)
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.768329, -0.0910791, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.818329, -0.0910791, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.818329, -0.0910791, 0.1, 0, -125, 179)
+State: FOLDING
+Sending to: -> (0.543624, 0.183874, 0.1, 0, -125, 179)
+State: OPEN_GRIPPER
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.446349, -0.111649, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.496349, -0.111649, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.496349, -0.111649, 0.1, 0, -125, 179)
+State: FOLDING
+Sending to: -> (0.529498, 0.252666, 0.1, 0, -125, 179)
+State: OPEN_GRIPPER
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.437779, -0.108203, 0.07, 0, -125, 179)
+Closing pick_crumpled_alg_node
+---------------------------------------
+
+ ======= Initialized pick_crumpled_alg_node 
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.443747, -0.118968, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.493747, -0.118968, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.493747, -0.118968, 0.1, 0, -125, 179)
+State: FOLDING
+Sending to: -> (0.532879, 0.246179, 0.1, 0, -125, 179)
+State: OPEN_GRIPPER
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.478138, -0.109686, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.528138, -0.109686, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.528138, -0.109686, 0.1, 0, -125, 179)
+State: FOLDING
+Sending to: -> (0.518822, 0.268655, 0.1, 0, -125, 179)
+State: OPEN_GRIPPER
+State: HOME
+State: PRE_PRE_FOLDING
+Sending to: -> (0.471301, -0.143004, 0.07, 0, -125, 179)
+State: PRE_FOLDING
+Sending to: -> (0.521301, -0.143004, 0.07, 0, -125, 179)
+State: FOLDING_POST_GRASP
+Sending to: -> (0.521301, -0.143004, 0.1, 0, -125, 179)
+State: FOLDING
+Sending to: -> (0.516508, 0.235016, 0.1, 0, -125, 179)
+State: OPEN_GRIPPER
+Closing pick_crumpled_alg_node

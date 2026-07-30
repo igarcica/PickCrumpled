@@ -68,6 +68,7 @@
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <geometry_msgs/PoseArray.h>
 #include <std_msgs/Float64.h>
 #include <std_msgs/String.h>
 #include <sensor_msgs/JointState.h>
@@ -80,17 +81,16 @@
 
 typedef enum {IDLE,
               HOME,
-              UPDATE_INIT_ROSPLAN_KB, //borrar
-              PRE_PRE_DRAG,//borrar
-              PRE_DRAG,//borrar
-              DRAG,//borrar
-              UP_DRAG,//borrar
-              PRE_PRE_ROTATE,
-              PRE_ROTATE,
-              ROTATE_POS,
-              ROTATE,
-              UP_ROTATE,
-              POST_DRAG_ROTATE,
+              PRE_PRE_TOPDOWN,
+              PRE_TOPDOWN,
+              TOPDOWN_POS,
+              TOPDOWN,
+              UP_TOPDOWN,
+              POST_DRAG_TOPDOWN,
+              PRE_PRE_FOLDING,
+              PRE_FOLDING,
+              FOLDING_POST_GRASP,
+              FOLDING,
               CHECK_CORNERS_POSE,
               WAIT_CHECK_CORNERS_POSE,
               PRE_GRASP,
@@ -124,7 +124,7 @@ typedef enum {IDLE,
               EXPERIMENTS1,
               EXPERIMENTS2,
               WAIT_EXPERIMENTS2,
-              ROTATE_POST_GRASP,
+              TOPDOWN_POST_GRASP,
               GO_TO_PLACE,
               WAIT_GO_TO_PLACE,
 	            PILING,
@@ -146,19 +146,13 @@ class PickCrumpledAlgNode : public algorithm_base::IriBaseAlgorithm<PickCrumpled
     std::atomic<int> last_action_notification_event{0};
     kortex_driver::Pose tool_pose;
     bool success = true;
-    //int state = 0;
-    bool start_demo=false;
+    bool top_down_grasp_demo;
+    bool folding_demo;
     bool start_experiments=false;
     bool stop=false;
-    std::string placing_strategy;
     pick_place_states_t state;
     double close_gripper;
     double open_gripper;
-    // bool piling;
-    double object_thickness_drag;
-    double object_thickness_rotate;
-    // std::vector<double>expected_pile_thickn;
-    double expected_pile_thickn;
 
     std::vector<double> pre_grasp_corner;
     kortex_driver::Pose home_pose;
@@ -167,8 +161,9 @@ class PickCrumpledAlgNode : public algorithm_base::IriBaseAlgorithm<PickCrumpled
     kortex_driver::Pose rotating_pose_garment;
     kortex_driver::Pose pre_rotating_pose_garment;
     kortex_driver::Pose dragging_pose_garment;
-    kortex_driver::Pose grasp_pile_height_point;
-    kortex_driver::Pose pre_grasp_pile_height_point;
+    //KINOVA's DEMOS
+    kortex_driver::Pose pre_grasp_highest_point, grasp_highest_point; //Top-down grasp demo
+    kortex_driver::Pose pre_grasp_folding_point, grasp_folding_point, place_folding_point; //Folding demo
     double end_dragging_pose;
     float garment_width;     //para borrar
     float garment_edge_size; //para borrar
@@ -191,28 +186,32 @@ class PickCrumpledAlgNode : public algorithm_base::IriBaseAlgorithm<PickCrumpled
     tf::TransformListener listener;
     tf::TransformBroadcaster broadcaster;
     ros::Timer handeye_frame_pub_timer;
-    void handeye_frame_pub(const ros::TimerEvent& event);
+    // void handeye_frame_pub(const ros::TimerEvent& event);
+    void set_camera_frame(const ros::TimerEvent& event);
     geometry_msgs::PoseStamped grasp_pose;
     bool process_grasp_pointcloud;
     bool get_garment_position;
-    bool get_garment_position2;
+    bool get_highest_point;
+    bool get_folding_grasp_point;
     bool get_garment_angle;
-    bool get_pile_height;
+    // bool get_pile_height;
     bool get_garment_edge;
     bool get_test_grasp_point; 
     ros::Subscriber garment_pose_subscriber;
     //ros::Subscriber garment_angle_subscriber;
     ros::Subscriber garment_edge_subscriber;
     ros::Subscriber corners_subscriber;
-    ros::Subscriber pile_height_marker_subscriber;
+    ros::Subscriber highest_point_marker_subscriber;
+    ros::Subscriber cloth_corners_subscriber;
     void check_worspaces(double garment_center);
     //void garment_angle_callback(const std_msgs::Float64::ConstPtr& msg);
     // void compute_grasp_angle(const std_msgs::Float64& msg);
     void compute_grasp_angle(double grasping_angle);
     //void select_grasp_point();
     void corners_callback(const visualization_msgs::MarkerArray::ConstPtr& msg);
-    void pile_height_marker_callback(const visualization_msgs::Marker::ConstPtr& msg);
-    void get_grasp_point(const geometry_msgs::PoseStamped grasp_pose);
+    // void get_cloth_corners(const geometry_msgs::PoseStamped cloth_corners);
+    void highest_point_marker_callback(const visualization_msgs::Marker::ConstPtr& msg);
+    void cloth_corners_callback(const geometry_msgs::PoseArray::ConstPtr& msg);
     
 
     void get_params(void);
@@ -220,6 +219,7 @@ class PickCrumpledAlgNode : public algorithm_base::IriBaseAlgorithm<PickCrumpled
 
     ros::Publisher garment_marker_publisher;
     ros::Publisher grasp_marker_publisher;
+    ros::Publisher corners_markers_publisher;
 
     // [publisher attributes]
     ros::Publisher cartesian_velocity_publisher_;
@@ -299,7 +299,9 @@ class PickCrumpledAlgNode : public algorithm_base::IriBaseAlgorithm<PickCrumpled
     void kinova_linear_moveActive();
     void kinova_linear_moveFeedback(const iri_kinova_linear_movement::kinova_linear_movementFeedbackConstPtr& feedback);
 
-    std::ofstream logfile, csvfile, planningfile;
+    std::ofstream logfile;
+
+    visualization_msgs::Marker marker;
 
    /**
     * \brief config variable

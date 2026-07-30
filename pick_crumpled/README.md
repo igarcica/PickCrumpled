@@ -31,7 +31,10 @@ This will also launch the RVIZ to visualize the perception system and rqt reconf
 
 - ***Start SM:***
   - **get_grasp_point**: Confirm the grasp point selected (pink point in RVIZ). 
-  - **start_demo**: Starts the state machine.
+  - **top_down_grasp_demo**: Starts the top-down grasp demo (grasp highest point based on camera's depth).
+  - **folding_demo**: Starts the folding demo (Carlos' demo that tracks cloth config while grasping a corner and moving it).
+  - **grasp_corner_id** and **place_corner_id**: Indicates the ID of the corner to grasp and the corner where to place.
+
   - **start_experiments**: Starts the state machine from the placing state to obtain data.
   - **stop**: Stops the state machine.
   - **ok**: Continues with the placing execution after checking the deformation.

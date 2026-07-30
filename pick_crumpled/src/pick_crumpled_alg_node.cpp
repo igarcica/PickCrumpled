@@ -8,37 +8,40 @@ PickCrumpledAlgNode::PickCrumpledAlgNode(void) :
 {
 
   this->state=IDLE;
-  this->start_demo=false;
+  this->top_down_grasp_demo=false;
+  this->folding_demo=false;
   this->start_experiments=false;
   this->stop=false;
   double open_gripper = 0.35;
   double close_gripper = 0.97; //0.81;
   // this->piling=false;
   this->n_obj_pile = 0;
-  // this->expected_pile_thickn.push_back(0.0);
-  this->object_thickness_drag = 0.055; //default towel 8l
-  this->object_thickness_rotate = 0.07; //default towel 8l
-  this->expected_pile_thickn = 0.0;
-  this->placing_strategy="placevert";
 
   // Garment pose subscriber
   this->process_grasp_pointcloud = false;
   this->get_garment_position=false;
+  this->get_highest_point=false;
+  this->get_folding_grasp_point=false;
   this->get_garment_angle=false;
   this->get_garment_edge=false;
   //this->garment_angle_subscriber = this->public_node_handle_.subscribe("/segment_table/grasp_angle",1,&PickCrumpledAlgNode::garment_angle_callback,this);
   this->corners_subscriber = this->public_node_handle_.subscribe("/segment_table/pick_corners",1,&PickCrumpledAlgNode::corners_callback,this);
-  this->pile_height_marker_subscriber = this->public_node_handle_.subscribe("/segment_table/pile_height_marker",1,&PickCrumpledAlgNode::pile_height_marker_callback,this);
+  this->highest_point_marker_subscriber = this->public_node_handle_.subscribe("/segment_table/pile_height_marker",1,&PickCrumpledAlgNode::highest_point_marker_callback,this);
+  this->cloth_corners_subscriber = this->public_node_handle_.subscribe("/cloth_corners",1,&PickCrumpledAlgNode::cloth_corners_callback,this); //Subscribes to Carlos' topic with cloth corners
 
   // Publish grasp marker
   this->garment_marker_publisher = this->public_node_handle_.advertise<visualization_msgs::Marker>("garment_marker", 1);
   this->grasp_marker_publisher = this->public_node_handle_.advertise<visualization_msgs::Marker>("grasp_marker", 1);
+  this->corners_markers_publisher = this->public_node_handle_.advertise<visualization_msgs::MarkerArray>("corners_markers", 1);
 
   // Publish handeye transform between ext_camera_link to base_link
-  this->handeye_frame_pub_timer = this->public_node_handle_.createTimer(ros::Duration(1.0),&PickCrumpledAlgNode::handeye_frame_pub,this);
+  // this->handeye_frame_pub_timer = this->public_node_handle_.createTimer(ros::Duration(1.0),&PickCrumpledAlgNode::handeye_frame_pub,this);
+  // this->handeye_frame_pub_timer.setPeriod(ros::Duration(1.0/50.0));
+  // this->handeye_frame_pub_timer.start();
+  //this->handeye_frame_pub_timer.stop();
+  this->handeye_frame_pub_timer = this->public_node_handle_.createTimer(ros::Duration(1.0),&PickCrumpledAlgNode::set_camera_frame,this);
   this->handeye_frame_pub_timer.setPeriod(ros::Duration(1.0/50.0));
   this->handeye_frame_pub_timer.start();
-  //this->handeye_frame_pub_timer.stop();
 
   this->get_params();
 
@@ -53,12 +56,20 @@ PickCrumpledAlgNode::PickCrumpledAlgNode(void) :
   this->pre_grasp_center.theta_z = this->pre_grasp_corner[5];
 
   //Starting point to do a top-down grasp
-  this->pre_grasp_pile_height_point.x = 0.53;
-  this->pre_grasp_pile_height_point.y = 0.0;
-  this->pre_grasp_pile_height_point.z = 0.4;
-  this->pre_grasp_pile_height_point.theta_x = 179;
-  this->pre_grasp_pile_height_point.theta_y = 0;
-  this->pre_grasp_pile_height_point.theta_z = 90;
+  this->pre_grasp_highest_point.x = 0.53;
+  this->pre_grasp_highest_point.y = 0.0;
+  this->pre_grasp_highest_point.z = 0.4;
+  this->pre_grasp_highest_point.theta_x = 179;
+  this->pre_grasp_highest_point.theta_y = 0;
+  this->pre_grasp_highest_point.theta_z = 90;
+
+  //Starting point for the folding grasp
+  // this->pre_grasp_folding_point.x = 0.53;
+  // this->pre_grasp_folding_point.y = 0.0;
+  // this->pre_grasp_folding_point.z = 0.4;
+  // this->pre_grasp_folding_point.theta_x = 179;
+  // this->pre_grasp_folding_point.theta_y = 0;
+  // this->pre_grasp_folding_point.theta_z = 90;
 
   // [init publishers]
   this->cartesian_velocity_publisher_ = this->private_node_handle_.advertise<kortex_driver::TwistCommand>("/" + this->robot_name + "/in/cartesian_velocity", 1);
@@ -113,6 +124,19 @@ PickCrumpledAlgNode::PickCrumpledAlgNode(void) :
   // [init action clients]
 
 
+  //PLOT GRASP POINT MARKER
+  this->marker.header.frame_id = "base_link";
+  this->marker.id = 0;
+  this->marker.type = visualization_msgs::Marker::SPHERE;
+  this->marker.scale.x=0.03;
+  this->marker.scale.y=0.03;
+  this->marker.scale.z=0.03;
+  this->marker.color.r = 0.0f;
+  this->marker.color.g = 1.0f;
+  this->marker.color.b = 1.0f;
+  this->marker.color.a = 1.0;
+  this->marker.lifetime = ros::Duration();
+
   ROS_DEBUG("PickCrumpledAlgNode:: Calling service activate_publishing_client_!");
   if (activate_publishing_client_.call(activate_publishing_srv_))
   {
@@ -139,9 +163,6 @@ PickCrumpledAlgNode::PickCrumpledAlgNode(void) :
   this->logfile << "---------------------------------------\n";
   this->logfile << "\n ======= Initialized pick_crumpled_alg_node \n"; 
   // logfile.close();
-  this->csvfile.open("/home/userlab/iri-lab/iri_ws/src/PickCrumpled/summary_picknplace.csv", std::ios::app);
-  this->csvfile << "Object in pile, Object name, Predicted Class SHORT, Predicted Class LONG, Grasped edge, Sensed deformation, Placing Quality" << std::endl; //Headers
-  this->planningfile.open("/home/userlab/iri-lab/iri_ws/src/PickCrumpled/planning_summary.txt", std::ios::app);
 }
 
 
@@ -164,7 +185,8 @@ void PickCrumpledAlgNode::mainNodeThread(void)
   {
     ROS_INFO("Demo Pick n Place has stopped!");
     this->state=IDLE;
-    this->start_demo=false;
+    this->top_down_grasp_demo=false;
+    this->folding_demo=false;
     this->start_experiments=false;
     this->stop=false;
   }
@@ -173,19 +195,33 @@ void PickCrumpledAlgNode::mainNodeThread(void)
     switch(this->state)
     {
       case IDLE: ROS_DEBUG("PickCrumpledAlgNode: state IDLE");
-                 if(this->start_demo)
+                 if(this->top_down_grasp_demo)
                  {
                    ROS_INFO("PickCrumpledAlgNode (IDLE state): Opening gripper");
-		               this->get_pile_height = false;
                    this->success &= send_gripper_command(this->open_gripper);
                    if (this->success)
                    {
-                     this->state=PRE_PRE_ROTATE;
+                     this->state=PRE_PRE_TOPDOWN;
                      ros::Duration(0.5).sleep();
-                     this->start_demo=false;
+                     this->top_down_grasp_demo=false;
                    }else{
                      ROS_INFO("PickCrumpledAlgNode (IDLE state): Failed to open gripper");
-                     this->start_demo=false;
+                     this->top_down_grasp_demo=false;
+                     this->state=IDLE;
+                   }
+                 }
+                 else if(this->folding_demo)
+                 {
+                   ROS_INFO("PickCrumpledAlgNode (IDLE state): Opening gripper");
+                   this->success &= send_gripper_command(this->open_gripper);
+                   if (this->success)
+                   {
+                     this->state=HOME;
+                     ros::Duration(0.5).sleep();
+                     this->folding_demo=false;
+                   }else{
+                     ROS_INFO("PickCrumpledAlgNode (IDLE state): Failed to open gripper");
+                     this->folding_demo=false;
                      this->state=IDLE;
                    }
                  }
@@ -207,7 +243,7 @@ void PickCrumpledAlgNode::mainNodeThread(void)
                   this->success &= home_the_robot(); // Move the robot to the Home position with an Action
                   if (this->success)
                   {
-                    this->state=PRE_PRE_ROTATE;
+                    this->state=PRE_PRE_FOLDING;
                     ros::Duration(0.5).sleep();
                   }else{
                     ROS_WARN("PickCrumpledAlgNode: Could not execute HOME action");
@@ -216,16 +252,17 @@ void PickCrumpledAlgNode::mainNodeThread(void)
                 }
       break;
 
-      case PRE_PRE_ROTATE: ROS_DEBUG("PickCrumpledAlgNode: state PRE_PRE_ROTATE");
+///TOP DOWN DEMO
+      case PRE_PRE_TOPDOWN: ROS_DEBUG("PickCrumpledAlgNode: state PRE_PRE_TOPDOWN");
                           {
-                            ROS_INFO("PickCrumpledSM: Sending to PRE_PRE_ROTATE position.");
-                            this->logfile << "State: PRE_PRE_ROTATE" << std::endl;
-                            std::cout << "\033[1;36m PRE-GRASP: -> \033[1;36m  x: " << this->pre_grasp_pile_height_point.x << ", y: " << this->pre_grasp_pile_height_point.y << ", z: " << this->pre_grasp_pile_height_point.z << std::endl;
-                            this->success &= send_cartesian_pose(this->pre_grasp_pile_height_point);
+                            ROS_INFO("PickCrumpledSM: Sending to PRE_PRE_TOPDOWN position.");
+                            this->logfile << "State: PRE_PRE_TOPDOWN" << std::endl;
+                            std::cout << "\033[1;36m PRE-GRASP: -> \033[1;36m  x: " << this->pre_grasp_highest_point.x << ", y: " << this->pre_grasp_highest_point.y << ", z: " << this->pre_grasp_highest_point.z << std::endl;
+                            this->success &= send_cartesian_pose(this->pre_grasp_highest_point);
                             if (this->success)
                             {
-                              ROS_INFO("Success PRE PRE ROTATE");
-                              this->state=PRE_ROTATE;
+                              ROS_INFO("Success PRE PRE TOPDOWN");
+                              this->state=PRE_TOPDOWN;
                               ros::Duration(0.5).sleep();
                             }
                             else
@@ -233,18 +270,18 @@ void PickCrumpledAlgNode::mainNodeThread(void)
                           }
       break;
 
-      case PRE_ROTATE:  ROS_DEBUG("PickCrumpledAlgNode: state PRE_ROTATE");
+      case PRE_TOPDOWN:  ROS_DEBUG("PickCrumpledAlgNode: state PRE_TOPDOWN");
                         {
-                          ROS_INFO("PickCrumpledSM: Sending to PRE_ROTATE position.");
-                          this->logfile << "State: PRE_ROTATE" << std::endl;
-                          kortex_driver::Pose current_grasp_pose = this->grasp_pile_height_point;
+                          ROS_INFO("PickCrumpledSM: Sending to PRE_TOPDOWN position.");
+                          this->logfile << "State: PRE_TOPDOWN" << std::endl;
+                          kortex_driver::Pose current_grasp_pose = this->grasp_highest_point;
                           current_grasp_pose.z += 0.1; //3 cm above point
                           std::cout << "\033[1;36m PRE-GRASP: -> \033[1;36m  x: " << current_grasp_pose.x << ", y: " << current_grasp_pose.y << ", z: " << current_grasp_pose.z << std::endl;
                           this->success &= send_cartesian_pose(current_grasp_pose);
                           if (this->success)
                           {
-                            ROS_INFO("Success PRE ROTATE");
-                            this->state=ROTATE_POS;
+                            ROS_INFO("Success PRE TOPDOWN");
+                            this->state=TOPDOWN_POS;
                             ros::Duration(0.5).sleep();
                           }
                           else
@@ -252,16 +289,17 @@ void PickCrumpledAlgNode::mainNodeThread(void)
                         }
       break;
 
-      case ROTATE_POS: ROS_DEBUG("PickCrumpledAlgNode: state R0TATE_POS");
+      case TOPDOWN_POS: ROS_DEBUG("PickCrumpledAlgNode: state TOPDOWN_POS");
                       {
-                        ROS_INFO("PickCrumpledSM: Sending to ROTATE_POS position.");
-                        this->logfile << "State: ROTATE_POS" << std::endl;
-                        this->grasp_pile_height_point.z = this->grasp_pile_height_point.z + 0.05; //WRIST 5cm above the point (note that is based on grasp_pile_height_point and not on current point)
-                        std::cout << "\033[1;36m PRE-GRASP: -> \033[1;36m  x: " << this->grasp_pile_height_point.x << ", y: " << this->grasp_pile_height_point.y << ", z: " << this->grasp_pile_height_point.z << std::endl;
-                        this->success &= send_cartesian_pose(this->grasp_pile_height_point);
+                        ROS_INFO("PickCrumpledSM: Sending to TOPDOWN_POS position.");
+                        this->logfile << "State: TOPDOWN_POS" << std::endl;
+                        this->grasp_highest_point.z = this->grasp_highest_point.z + 0.05; //WRIST 5cm above the point (note that is based on grasp_highest_point and not on current point)
+                        std::cout << "\033[1;36m PRE-GRASP: -> \033[1;36m  x: " << this->grasp_highest_point.x << ", y: " << this->grasp_highest_point.y << ", z: " << this->grasp_highest_point.z << std::endl;
+                        this->success &= send_cartesian_pose(this->grasp_highest_point);
                         if (this->success)
                         {
-                          ROS_INFO("Success ROTATE POS");
+                          ROS_INFO("Success TOPDOWN POS");
+                          this->top_down_grasp_demo = true;
                           this->state=CLOSE_GRIPPER;
                           ros::Duration(0.5).sleep();
                         }
@@ -276,27 +314,111 @@ void PickCrumpledAlgNode::mainNodeThread(void)
                           this->success &= send_gripper_command(this->close_gripper);
                           if (this->success)
                           {
-                            this->state=POST_GRASP;
+                            if(this->top_down_grasp_demo)
+                            {
+                              this->top_down_grasp_demo = false;
+                              this->state=TOPDOWN_POST_GRASP;
+                            }
+                            if(this->folding_demo)
+                            {
+                              this->folding_demo = false;
+                              this->state=FOLDING_POST_GRASP;
+                            }
+                            else
+                              this->state=IDLE;
                             ros::Duration(0.5).sleep();
                           }
       break;
 
-      case POST_GRASP: ROS_DEBUG("PickCrumpledAlgNode: state POST_GRASP");
+      case TOPDOWN_POST_GRASP: ROS_DEBUG("PickCrumpledAlgNode: state POST_GRASP");
                       {
                         ROS_INFO("PickCrumpledSM: Sending to POST_GRASP position.");
                         this->logfile << "State: POST_GRASP" << std::endl;
-                        this->grasp_pile_height_point.z = this->grasp_pile_height_point.z + 0.15; //Movr arm 10cm up
-                        std::cout << "\033[1;36m PRE-GRASP: -> \033[1;36m  x: " << this->grasp_pile_height_point.x << ", y: " << this->grasp_pile_height_point.y << ", z: " << this->grasp_pile_height_point.z << std::endl;
-                        this->success &= send_cartesian_pose(this->grasp_pile_height_point);
+                        this->grasp_highest_point.z = this->grasp_highest_point.z + 0.15; //Movr arm 10cm up
+                        std::cout << "\033[1;36m POST-GRASP: -> \033[1;36m  x: " << this->grasp_highest_point.x << ", y: " << this->grasp_highest_point.y << ", z: " << this->grasp_highest_point.z << std::endl;
+                        this->success &= send_cartesian_pose(this->grasp_highest_point);
                         if (this->success)
                         {
-                          ROS_INFO("Success ROTATE POS");
+                          ROS_INFO("Success POST GRASP");
                           this->state=IDLE;
                           ros::Duration(0.5).sleep();
                         }
                         else
                           this->state=IDLE;
                       }
+      break;
+//////
+
+/// FOLDING DEMO
+      case PRE_PRE_FOLDING: ROS_DEBUG("PickCrumpledAlgNode: state PRE_PRE_FOLDING");
+                      {
+                        ROS_INFO("PickCrumpledSM: Sending to PRE_PRE_FOLDING position.");
+                        this->logfile << "State: PRE_PRE_FOLDING" << std::endl;
+                        std::cout << "\033[1;36m PRE_PRE_FOLDING: -> \033[1;36m  x: " << this->grasp_folding_point.x << ", y: " << this->grasp_folding_point.y << ", z: " << this->grasp_folding_point.z << std::endl;
+                        this->success &= send_cartesian_pose(this->grasp_folding_point);
+                        if (this->success)
+                        {
+                          ROS_INFO("Success PRE_PRE_FOLDING");
+                          this->state = PRE_FOLDING;
+                          ros::Duration(0.5).sleep();
+                        }
+                        else
+                          this->state=IDLE;
+                      }
+      break;
+
+      case PRE_FOLDING: ROS_DEBUG("PickCrumpledAlgNode: state PRE_FOLDING");
+                      {
+                        ROS_INFO("PickCrumpledSM: Sending to PRE_FOLDING position.");
+                        this->logfile << "State: PRE_FOLDING" << std::endl;
+                        this->grasp_folding_point.x = this->grasp_folding_point.x + 0.05;
+                        std::cout << "\033[1;36m PRE_FOLDING: -> \033[1;36m  x: " << this->grasp_folding_point.x << ", y: " << this->grasp_folding_point.y << ", z: " << this->grasp_folding_point.z << std::endl;
+                        this->success &= send_cartesian_pose(this->grasp_folding_point);
+                        if (this->success)
+                        {
+                          ROS_INFO("Success PRE_FOLDING");
+                          this->folding_demo = true;
+                          this->state = CLOSE_GRIPPER;
+                          ros::Duration(0.5).sleep();
+                        }
+                        else
+                          this->state=IDLE;
+                      }
+      break;
+
+      case FOLDING_POST_GRASP: ROS_DEBUG("PickCrumpledAlgNode: state FOLDING_POST_GRASP");
+                      {
+                        ROS_INFO("PickCrumpledSM: Sending to FOLDING_POST_GRASP position.");
+                        this->logfile << "State: FOLDING_POST_GRASP" << std::endl;
+                        this->grasp_folding_point.z = this->grasp_folding_point.z + 0.03; //Movr arm 5cm up
+                        std::cout << "\033[1;36m FOLDING_POST_GRASP: -> \033[1;36m  x: " << this->grasp_folding_point.x << ", y: " << this->grasp_folding_point.y << ", z: " << this->grasp_folding_point.z << std::endl;
+                        this->success &= send_cartesian_pose(this->grasp_folding_point);
+                        if (this->success)
+                        {
+                          ROS_INFO("Success FOLDING_POST_GRASP");
+                          this->state=FOLDING;
+                          ros::Duration(0.5).sleep();
+                        }
+                        else
+                          this->state=IDLE;
+                      }
+      break;
+
+      case FOLDING: ROS_DEBUG("PickCrumpledAlgNode: state FOLDING");
+                    {
+                      ROS_INFO("PickCrumpledSM: Sending to FOLDING position.");
+                      this->logfile << "State: FOLDING" << std::endl;
+                      std::cout << "\033[1;36m FOLDING: -> \033[1;36m  x: " << this->place_folding_point.x << ", y: " << this->place_folding_point.y << ", z: " << this->place_folding_point.z << std::endl;
+                      this->success &= send_cartesian_pose(this->place_folding_point);
+                      if (this->success)
+                      {
+                        ROS_INFO("Success FOLDING");
+                        this->state = OPEN_GRIPPER;
+                        ros::Duration(0.5).sleep();
+                      }
+                      else
+                        this->state=IDLE;
+                    }
       break;
 
       // case POST_GRASP: ROS_DEBUG("PickCrumpledAlgNode: state POST GRASP");
@@ -358,25 +480,23 @@ void PickCrumpledAlgNode::mainNodeThread(void)
 
       // OPEN GRIPPER
       case OPEN_GRIPPER:  ROS_DEBUG("PickCrumpledAlgNode: state OPEN GRIPPER");
-			                    // if(config_.ok)
-                          if(true)
-			                    {
-                            this->logfile << "State: OPEN_GRIPPER" << std::endl;
-                            this->success &= send_gripper_command(this->open_gripper);
-                            if (this->success)
-                            {
-                              this->state=POST_PLACE;
-                              ros::Duration(0.5).sleep();
-                            }
-			                      else
-			                      {
-                              ROS_INFO("PickCrumpledAlgNode: Failed to open gripper");
-			                        this->state=END;
-			                      }
-                            config_.ok=false;
-			                    }
+			                    // if(config_.ok){
+                          this->logfile << "State: OPEN_GRIPPER" << std::endl;
+                          this->success &= send_gripper_command(this->open_gripper);
+                          if (this->success)
+                          {
+                            this->state=IDLE; //POST_PLACE;
+                            ros::Duration(0.5).sleep();
+                          }
 			                    else
-			                      this->state=OPEN_GRIPPER;
+			                    {
+                            ROS_INFO("PickCrumpledAlgNode: Failed to open gripper");
+			                      this->state=END;
+			                    }
+                          // config_.ok=false;
+			                    // }
+			                    // else
+			                    //   this->state=OPEN_GRIPPER;
       break;
 
       // POST-PLACE POSITION
@@ -578,39 +698,22 @@ void PickCrumpledAlgNode::node_config_update(Config &config, uint32_t level)
 
   // ---NAIVE APPROACH PARAMS---
   //Start SM for demo (use 'towel' bool to change strategy for grasping and placing towel (less gripper closure + vertical place) or napkin (more gripper closure + place2)
-  if(config.start_demo)// && !config.plan_pddl_demo)
+  if(config.top_down_grasp_demo)// && !config.plan_pddl_demo)
   {
-    this->get_garment_position2=true;
-    this->pddl_demo=false;
-    this->start_demo=true;
-    ROS_INFO("PickCrumpledAlgNode: Starting demo with selected gripper apperture and placing strategy");
+    ROS_INFO("PickCrumpledAlgNode: Starting top down grasp demo");
+    this->get_highest_point=true;
+    // this->pddl_demo=false;
     this->close_gripper=config.close_gripper;
-    if(config.vertical_place)
-      {
-        this->placing_strategy="placevert";//2
-        ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Vertical");
-      }
-    else if(config.diagonal_place)
-      {
-        this->placing_strategy="placediag"; //1
-        ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Diagonal");
-      }
-    else if(config.rotating_place)
-      {
-        this->placing_strategy="placerot"; //place2 3
-        ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Rotating");
-      }
-    else if(config.dynamic_place)
-      {
-        this->placing_strategy="placedyn"; //dynamic (executed outside SM) //4
-        ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Dynamic");
-      }
-    else
-      {
-        this->placing_strategy="placevert"; //2
-        ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Vertical");
-      }
-    config.start_demo=false;
+    config.top_down_grasp_demo=false;
+  }
+
+  // ---FOLDING DEMO---
+  if(config.folding_demo)
+  {
+    ROS_INFO("PickCrumpledAlgNode: Starting folding cloth demo");
+    this->get_folding_grasp_point=true; //Get grasping point and start demo
+    this->close_gripper=config.close_gripper;
+    config.folding_demo=false;
   }
   
   // Select grasping point
@@ -625,45 +728,11 @@ void PickCrumpledAlgNode::node_config_update(Config &config, uint32_t level)
     // this->garment_edge_size=config.garment_edge_size;
   }
 
-  // Execute Drag or Rotate actions before demo
-  if(config.drag)
-  {
-    //ROS_WARN("PickCrumpledAlgNode: Activated PDDL SM management");
-    this->drag=true;
-    this->rotate=false;
-  }
-  if(config.rotate)
-  {
-    //ROS_WARN("PickCrumpledAlgNode: Activated PDDL SM management");
-    this->drag=false;
-    this->rotate=true;
-  }
-
   // ---START SM FROM CHECK DEFORMATION---
   if(config.start_experiments) 
   {
     this->pddl_demo=false;
     this->start_experiments=true;
-    if(config.vertical_place)
-    {
-      this->placing_strategy="placevert"; //2
-      ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Vertical");
-    }
-    else if(config.diagonal_place)
-    {
-      this->placing_strategy="placediag"; //1
-      ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Diagonal");
-    }
-    else if(config.rotating_place)
-    {
-      this->placing_strategy="placerot"; //place2
-      ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Rotating");
-    }
-    else
-    {
-      this->placing_strategy="placevert"; //2
-      ROS_INFO("PickCrumpledAlgNode: Placing startegy --> Vertical");
-    }
     config.start_experiments=false;
   }
 
@@ -692,380 +761,410 @@ void PickCrumpledAlgNode::node_config_update(Config &config, uint32_t level)
  
 /* PERCEPTION FUNCTIONS */
 // Set and publish handeye transform
-void PickCrumpledAlgNode::handeye_frame_pub(const ros::TimerEvent& event)
+// void PickCrumpledAlgNode::handeye_frame_pub(const ros::TimerEvent& event)
+// {
+  // // Set handeye transform
+  // tf::Transform transform;
+  // transform.setOrigin(tf::Vector3(config_.handeye_x, config_.handeye_y, config_.handeye_z));
+  // tf::Quaternion q;
+  // q.setRPY(config_.handeye_r,config_.handeye_p,config_.handeye_yw);
+  // transform.setRotation(q);
+  // // this->broadcaster.sendTransform(tf::StampedTransform(transform,ros::Time::now(),"base_link",config_.camera_link)); 
+  // // this->broadcaster.sendTransform(tf::StampedTransform(transform,ros::Time::now(),"base_link","ext_camera_link")); //Realsense camera
+  // this->broadcaster.sendTransform(tf::StampedTransform(transform,ros::Time::now(),"base_link","camera_depth_optical_frame")); //Carlos' camera
+// }
+
+/// Create TF link for Carlos' camera wrt base_link
+void PickCrumpledAlgNode::set_camera_frame(const ros::TimerEvent& event)
 {
-  // Set handeye transform
-  tf::Transform transform;
-  transform.setOrigin(tf::Vector3(config_.handeye_x, config_.handeye_y, config_.handeye_z));
+  tf::TransformBroadcaster static_broadcaster;
+  geometry_msgs::TransformStamped t;
+
+  t.header.stamp = ros::Time::now();
+  t.header.frame_id = "base_link";
+  t.child_frame_id = "camera_depth_optical_frame";
+
+  t.transform.translation.x = config_.handeye_x;
+  t.transform.translation.y = config_.handeye_y;
+  t.transform.translation.z = config_.handeye_z;
+
   tf::Quaternion q;
-  q.setRPY(config_.handeye_r,config_.handeye_p,config_.handeye_yw);
-  transform.setRotation(q);
-  this->broadcaster.sendTransform(tf::StampedTransform(transform,ros::Time::now(),"base_link","ext_camera_link"));
+  q.setRPY(config_.handeye_r,
+          config_.handeye_p,
+          config_.handeye_yw);
+
+  t.transform.rotation.x = q.x();
+  t.transform.rotation.y = q.y();
+  t.transform.rotation.z = q.z();
+  t.transform.rotation.w = q.w();
+
+  t.header.stamp = ros::Time::now();
+  static_broadcaster.sendTransform(t);
 }
 
-// Subscribes to the topic sending the corner's position
-// Renames them according to its position wrt base_link
+// // Subscribes to the topic sending the corner's position
+// // Renames them according to its position wrt base_link
 void PickCrumpledAlgNode::corners_callback(const visualization_msgs::MarkerArray::ConstPtr& msg)
 {
-  ROS_DEBUG("PickCrumpledAlgNode: Pick corners callback");
-  if(this->process_grasp_pointcloud)
-  {
-    //Get distances to base_link and set corresponding names (down_left, up_right, etc)
-    geometry_msgs::PointStamped point_in;
-    geometry_msgs::PointStamped point_out;
-    std::vector<geometry_msgs::PointStamped> points;
+  // ROS_DEBUG("PickCrumpledAlgNode: Pick corners callback");
+  // if(this->process_grasp_pointcloud)
+  // {
+  //   //Get distances to base_link and set corresponding names (down_left, up_right, etc)
+  //   geometry_msgs::PointStamped point_in;
+  //   geometry_msgs::PointStamped point_out;
+  //   std::vector<geometry_msgs::PointStamped> points;
 
-    // Transform point to robot base_link reference frame
-    for(int i=0; i<msg->markers.size(); i++)
-    {
-      point_in.header.frame_id = msg->markers[i].header.frame_id;
-      point_in.header.stamp = msg->markers[i].header.stamp;
-      point_in.point = msg->markers[i].pose.position;
+  //   // Transform point to robot base_link reference frame
+  //   for(int i=0; i<msg->markers.size(); i++)
+  //   {
+  //     point_in.header.frame_id = msg->markers[i].header.frame_id;
+  //     point_in.header.stamp = msg->markers[i].header.stamp;
+  //     point_in.point = msg->markers[i].pose.position;
 
-      this->listener.transformPoint("base_link", point_in, point_out);
-      points.push_back(point_out);
-    }
+  //     this->listener.transformPoint("base_link", point_in, point_out);
+  //     points.push_back(point_out);
+  //   }
 
-    // ---GET OBJECT THICKNESS---
-    double max_z = std::max({points[0].point.z, points[1].point.z, points[2].point.z, points[3].point.z}); //Get the highest z value (wrt base_link)
-    // std::cout << "OBJECT THICKNESS: " << max_z << std::endl;
+  //   // ---GET OBJECT THICKNESS---
+  //   double max_z = std::max({points[0].point.z, points[1].point.z, points[2].point.z, points[3].point.z}); //Get the highest z value (wrt base_link)
+  //   // std::cout << "OBJECT THICKNESS: " << max_z << std::endl;
 
-    // ---GET CORNERS NAMES---
-    geometry_msgs::Point corner_ul2, corner_dl2, corner_ur2, corner_dr2, center; //Better format, as we dont have orientation
-    // Identify bottom-right (smallest x, smallest y wrt base_link) and top-left (largest x, largest y wrt base_link)
-    corner_dr2 = points[0].point;
-    corner_ul2 = points[0].point;
-    for (int i = 1; i < 4; i++) {
-      // if (points[i].point.x < corner_dr.x || (points[i].point.x == corner_dr.x && points[i].point.y < corner_dr.y))
-      if (points[i].point.x <= corner_dr2.x && points[i].point.y <= corner_dr2.y)
-          corner_dr2 = points[i].point;
-      // if (points[i].point.x > corner_ul.x || (points[i].point.x == corner_ul.x && points[i].point.y > corner_ul.y))
-      if (points[i].point.x >= corner_ul2.x && points[i].point.y >= corner_ul2.y)
-          corner_ul2 = points[i].point;
-    }
-    // Identify the remaining two points
-    geometry_msgs::Point remaining2[2];
-    int idx2 = 0;
-    for (int i = 0; i < 4; i++) {
-      if (!(points[i].point.x == corner_dr2.x && points[i].point.y == corner_dr2.y) &&
-          !(points[i].point.x == corner_ul2.x && points[i].point.y == corner_ul2.y)) {
-          remaining2[idx2++] = points[i].point;
-      }
-    }
-    // Assign top-right and bottom-left based on y-values wrt base_link
-    if (remaining2[0].y > remaining2[1].y) {
-        corner_dl2 = remaining2[0];
-        corner_ur2 = remaining2[1];
-    } else {
-        corner_dl2 = remaining2[1];
-        corner_ur2 = remaining2[0];
-    }
-    ROS_INFO("PickCrumpled: Identified corners:");
-    ROS_INFO("Bottom Left  (DL): (%f, %f)", corner_dl2.x, corner_dl2.y);
-    ROS_INFO("Bottom Right (DR): (%f, %f)", corner_dr2.x, corner_dr2.y);
-    ROS_INFO("Top Left     (UL): (%f, %f)", corner_ul2.x, corner_ul2.y);
-    ROS_INFO("Top Right    (UR): (%f, %f)", corner_ur2.x, corner_ur2.y);
-
-
-    // ---GET CORNERS NAMES---
-    geometry_msgs::Point corner_d1, corner_d2, corner_ul, corner_dl, corner_ur, corner_dr; //Better format, as we dont have orientation
-    // Identify bottom points (smallest x wrt base_link) 
-    corner_d1 = points[0].point; 
-    corner_d2 = points[1].point;
-    for (int i = 1; i < 4; i++) {
-      if (points[i].point.x < corner_d1.x) //find lowest bottom point
-      {
-        corner_d2 = corner_d1;
-        corner_d1 = points[i].point;
-      }
-      else if (points[i].point.x < corner_d2.x) //find two bottom points
-      {
-        corner_d2 = points[i].point;
-      }
-      if (corner_d1.y >= corner_d2.y) //Bottom point with higher y = Down left
-      {
-        corner_dl = corner_d1; 
-        corner_dr = corner_d2;
-      }else{
-        corner_dl = corner_d2;
-        corner_dr = corner_d1;
-      }
-    }
-    // Identify the remaining two points (top points)
-    geometry_msgs::Point remaining[2];
-    int idx = 0;
-    for (int i = 0; i < 4; i++) {
-      if (!(points[i].point.x == corner_dr.x && points[i].point.y == corner_dr.y) &&
-          !(points[i].point.x == corner_dl.x && points[i].point.y == corner_dl.y)) {
-          remaining[idx++] = points[i].point;
-      }
-    }
-    // Assign top-right and bottom-left based on y-values wrt base_link
-    if (remaining[0].y > remaining[1].y) {
-        corner_ul = remaining[0];
-        corner_ur = remaining[1];
-    } else {
-        corner_ul = remaining[1];
-        corner_ur = remaining[0];
-    }
-    ROS_INFO("PickCrumpled: Identified corners:");
-    ROS_INFO("Bottom Left  (DL): (%f, %f)", corner_dl.x, corner_dl.y);
-    ROS_INFO("Bottom Right (DR): (%f, %f)", corner_dr.x, corner_dr.y);
-    ROS_INFO("Top Left     (UL): (%f, %f)", corner_ul.x, corner_ul.y);
-    ROS_INFO("Top Right    (UR): (%f, %f)", corner_ur.x, corner_ur.y);
-
-    // ---COMPUTE EDGES LENGTH AND CENTERS---
-    // Define the edges 
-    std::pair<geometry_msgs::Point, geometry_msgs::Point> edges[4] = {
-        {corner_dl, corner_dr}, // Bottom edge
-        {corner_ul, corner_ur}, // Top edge
-        {corner_ul, corner_dl}, // Left edge
-        {corner_dr, corner_ur}  // Right edge
-    };
-
-    // Compute the edges lenth and their midpoints
-    double lengths[4];
-    geometry_msgs::Point edge_centers[4];
-    geometry_msgs::Point a, b;
-
-    for (int i = 0; i < 4; i++) {
-      a = edges[i].first;
-      b = edges[i].second;
-      lengths[i] = sqrt(pow(a.x - b.x, 2) + pow(a.y - b.y, 2));
-      edge_centers[i].x = (a.x + b.x) / 2.0;
-      edge_centers[i].y = (a.y + b.y) / 2.0;
-      ROS_DEBUG("Length: %d", lengths[i]);
-      ROS_DEBUG("Center: (%d, %d )", edge_centers[i].x, edge_centers[i].y);
-    }
-
-    // ---GET NEAREST EDGE---
-    // Find the nearest and second nearest center to the origin
-    int nearestIndex = -1, secondNearestIndex = -1;
-    double minDistance = 1000;
-    double secondMinDistance = 1000;
-    for (int i = 0; i < 4; i++) {
-        double d = sqrt(pow(edge_centers[i].x, 2) + pow(edge_centers[i].y, 2));
-        if (d < minDistance) {
-          secondMinDistance = minDistance; // Update second nearest before updating the nearest
-          secondNearestIndex = nearestIndex;
-          minDistance = d;
-          nearestIndex = i;
-        } else if (d < secondMinDistance) {
-          secondMinDistance = d;
-          secondNearestIndex = i;
-        }
-    }
-    // std::cout << "Nearest center to origin: (" << edge_centers[nearestIndex].x << ", " << edge_centers[nearestIndex].y << ") with distance " << minDistance << std::endl;
-    // std::cout << "Second nearest center to origin: (" << edge_centers[secondNearestIndex].x << ", " << edge_centers[secondNearestIndex].y << ") with distance " << secondMinDistance << std::endl;
+  //   // ---GET CORNERS NAMES---
+  //   geometry_msgs::Point corner_ul2, corner_dl2, corner_ur2, corner_dr2, center; //Better format, as we dont have orientation
+  //   // Identify bottom-right (smallest x, smallest y wrt base_link) and top-left (largest x, largest y wrt base_link)
+  //   corner_dr2 = points[0].point;
+  //   corner_ul2 = points[0].point;
+  //   for (int i = 1; i < 4; i++) {
+  //     // if (points[i].point.x < corner_dr.x || (points[i].point.x == corner_dr.x && points[i].point.y < corner_dr.y))
+  //     if (points[i].point.x <= corner_dr2.x && points[i].point.y <= corner_dr2.y)
+  //         corner_dr2 = points[i].point;
+  //     // if (points[i].point.x > corner_ul.x || (points[i].point.x == corner_ul.x && points[i].point.y > corner_ul.y))
+  //     if (points[i].point.x >= corner_ul2.x && points[i].point.y >= corner_ul2.y)
+  //         corner_ul2 = points[i].point;
+  //   }
+  //   // Identify the remaining two points
+  //   geometry_msgs::Point remaining2[2];
+  //   int idx2 = 0;
+  //   for (int i = 0; i < 4; i++) {
+  //     if (!(points[i].point.x == corner_dr2.x && points[i].point.y == corner_dr2.y) &&
+  //         !(points[i].point.x == corner_ul2.x && points[i].point.y == corner_ul2.y)) {
+  //         remaining2[idx2++] = points[i].point;
+  //     }
+  //   }
+  //   // Assign top-right and bottom-left based on y-values wrt base_link
+  //   if (remaining2[0].y > remaining2[1].y) {
+  //       corner_dl2 = remaining2[0];
+  //       corner_ur2 = remaining2[1];
+  //   } else {
+  //       corner_dl2 = remaining2[1];
+  //       corner_ur2 = remaining2[0];
+  //   }
+  //   ROS_INFO("PickCrumpled: Identified corners:");
+  //   ROS_INFO("Bottom Left  (DL): (%f, %f)", corner_dl2.x, corner_dl2.y);
+  //   ROS_INFO("Bottom Right (DR): (%f, %f)", corner_dr2.x, corner_dr2.y);
+  //   ROS_INFO("Top Left     (UL): (%f, %f)", corner_ul2.x, corner_ul2.y);
+  //   ROS_INFO("Top Right    (UR): (%f, %f)", corner_ur2.x, corner_ur2.y);
 
 
+  //   // ---GET CORNERS NAMES---
+  //   geometry_msgs::Point corner_d1, corner_d2, corner_ul, corner_dl, corner_ur, corner_dr; //Better format, as we dont have orientation
+  //   // Identify bottom points (smallest x wrt base_link) 
+  //   corner_d1 = points[0].point; 
+  //   corner_d2 = points[1].point;
+  //   for (int i = 1; i < 4; i++) {
+  //     if (points[i].point.x < corner_d1.x) //find lowest bottom point
+  //     {
+  //       corner_d2 = corner_d1;
+  //       corner_d1 = points[i].point;
+  //     }
+  //     else if (points[i].point.x < corner_d2.x) //find two bottom points
+  //     {
+  //       corner_d2 = points[i].point;
+  //     }
+  //     if (corner_d1.y >= corner_d2.y) //Bottom point with higher y = Down left
+  //     {
+  //       corner_dl = corner_d1; 
+  //       corner_dr = corner_d2;
+  //     }else{
+  //       corner_dl = corner_d2;
+  //       corner_dr = corner_d1;
+  //     }
+  //   }
+  //   // Identify the remaining two points (top points)
+  //   geometry_msgs::Point remaining[2];
+  //   int idx = 0;
+  //   for (int i = 0; i < 4; i++) {
+  //     if (!(points[i].point.x == corner_dr.x && points[i].point.y == corner_dr.y) &&
+  //         !(points[i].point.x == corner_dl.x && points[i].point.y == corner_dl.y)) {
+  //         remaining[idx++] = points[i].point;
+  //     }
+  //   }
+  //   // Assign top-right and bottom-left based on y-values wrt base_link
+  //   if (remaining[0].y > remaining[1].y) {
+  //       corner_ul = remaining[0];
+  //       corner_ur = remaining[1];
+  //   } else {
+  //       corner_ul = remaining[1];
+  //       corner_ur = remaining[0];
+  //   }
+  //   ROS_INFO("PickCrumpled: Identified corners:");
+  //   ROS_INFO("Bottom Left  (DL): (%f, %f)", corner_dl.x, corner_dl.y);
+  //   ROS_INFO("Bottom Right (DR): (%f, %f)", corner_dr.x, corner_dr.y);
+  //   ROS_INFO("Top Left     (UL): (%f, %f)", corner_ul.x, corner_ul.y);
+  //   ROS_INFO("Top Right    (UR): (%f, %f)", corner_ur.x, corner_ur.y);
 
-    // CENTER POINT OF GARMENT - computed averaging the coordinates of the corners
-    geometry_msgs::Point garment_center;
-    for (const auto& corner : points) { 
-        garment_center.x += corner.point.x;
-        garment_center.y += corner.point.y;
-        garment_center.z += corner.point.z; // Its not necessary
-    }
-    garment_center.x /= points.size();
-    garment_center.y /= points.size();
-    garment_center.z /= points.size();
-    double disGarmenCenter = sqrt(pow(garment_center.x, 2) + pow(garment_center.y, 2));
+  //   // ---COMPUTE EDGES LENGTH AND CENTERS---
+  //   // Define the edges 
+  //   std::pair<geometry_msgs::Point, geometry_msgs::Point> edges[4] = {
+  //       {corner_dl, corner_dr}, // Bottom edge
+  //       {corner_ul, corner_ur}, // Top edge
+  //       {corner_ul, corner_dl}, // Left edge
+  //       {corner_dr, corner_ur}  // Right edge
+  //   };
+
+  //   // Compute the edges lenth and their midpoints
+  //   double lengths[4];
+  //   geometry_msgs::Point edge_centers[4];
+  //   geometry_msgs::Point a, b;
+
+  //   for (int i = 0; i < 4; i++) {
+  //     a = edges[i].first;
+  //     b = edges[i].second;
+  //     lengths[i] = sqrt(pow(a.x - b.x, 2) + pow(a.y - b.y, 2));
+  //     edge_centers[i].x = (a.x + b.x) / 2.0;
+  //     edge_centers[i].y = (a.y + b.y) / 2.0;
+  //     ROS_DEBUG("Length: %d", lengths[i]);
+  //     ROS_DEBUG("Center: (%d, %d )", edge_centers[i].x, edge_centers[i].y);
+  //   }
+
+  //   // ---GET NEAREST EDGE---
+  //   // Find the nearest and second nearest center to the origin
+  //   int nearestIndex = -1, secondNearestIndex = -1;
+  //   double minDistance = 1000;
+  //   double secondMinDistance = 1000;
+  //   for (int i = 0; i < 4; i++) {
+  //       double d = sqrt(pow(edge_centers[i].x, 2) + pow(edge_centers[i].y, 2));
+  //       if (d < minDistance) {
+  //         secondMinDistance = minDistance; // Update second nearest before updating the nearest
+  //         secondNearestIndex = nearestIndex;
+  //         minDistance = d;
+  //         nearestIndex = i;
+  //       } else if (d < secondMinDistance) {
+  //         secondMinDistance = d;
+  //         secondNearestIndex = i;
+  //       }
+  //   }
+  //   // std::cout << "Nearest center to origin: (" << edge_centers[nearestIndex].x << ", " << edge_centers[nearestIndex].y << ") with distance " << minDistance << std::endl;
+  //   // std::cout << "Second nearest center to origin: (" << edge_centers[secondNearestIndex].x << ", " << edge_centers[secondNearestIndex].y << ") with distance " << secondMinDistance << std::endl;
+
+
+
+  //   // CENTER POINT OF GARMENT - computed averaging the coordinates of the corners
+  //   geometry_msgs::Point garment_center;
+  //   for (const auto& corner : points) { 
+  //       garment_center.x += corner.point.x;
+  //       garment_center.y += corner.point.y;
+  //       garment_center.z += corner.point.z; // Its not necessary
+  //   }
+  //   garment_center.x /= points.size();
+  //   garment_center.y /= points.size();
+  //   garment_center.z /= points.size();
+  //   double disGarmenCenter = sqrt(pow(garment_center.x, 2) + pow(garment_center.y, 2));
 
     
-    if(this->get_garment_position)
-    // if(config_.select_grasp_point) //for planner
-    {
-      //-------GRASPING POSITION-------
-      visualization_msgs::Marker marker;
-      marker.header.frame_id = "base_link";
-      marker.id = 0;
-      marker.type = visualization_msgs::Marker::SPHERE;
-      marker.scale.x=0.01;
-      marker.scale.y=0.01;
-      marker.scale.z=0.01;
-      marker.color.r = 1.0f;
-      marker.color.g = 0.0f;
-      marker.color.b = 1.0f;
-      marker.color.a = 1.0;
-      marker.lifetime = ros::Duration();
+  //   if(this->get_garment_position)
+  //   // if(config_.select_grasp_point) //for planner
+  //   {
+  //     //-------GRASPING POSITION-------
+  //     visualization_msgs::Marker marker;
+  //     marker.header.frame_id = "base_link";
+  //     marker.id = 0;
+  //     marker.type = visualization_msgs::Marker::SPHERE;
+  //     marker.scale.x=0.01;
+  //     marker.scale.y=0.01;
+  //     marker.scale.z=0.01;
+  //     marker.color.r = 1.0f;
+  //     marker.color.g = 0.0f;
+  //     marker.color.b = 1.0f;
+  //     marker.color.a = 1.0;
+  //     marker.lifetime = ros::Duration();
 
-      //Invertir edges si el planner indica que hay que coger el segundo edge y es reachable (ToDO. por ahora todo esto se hace con reconfigure)
-      if(config_.grasp_second_edge)
-      {
-        std::cout << "Grasp second nearest edge" << std::endl;
-        std::string temp = this->nearest_edge;
-        this->nearest_edge=this->second_nearest_edge;
-        this->second_nearest_edge=temp;
-        int temp2 = nearestIndex;
-        nearestIndex=secondNearestIndex;
-        secondNearestIndex=temp2;
-      }
+  //     //Invertir edges si el planner indica que hay que coger el segundo edge y es reachable (ToDO. por ahora todo esto se hace con reconfigure)
+  //     if(config_.grasp_second_edge)
+  //     {
+  //       std::cout << "Grasp second nearest edge" << std::endl;
+  //       std::string temp = this->nearest_edge;
+  //       this->nearest_edge=this->second_nearest_edge;
+  //       this->second_nearest_edge=temp;
+  //       int temp2 = nearestIndex;
+  //       nearestIndex=secondNearestIndex;
+  //       secondNearestIndex=temp2;
+  //     }
 
-      std::cout << "------------------------------------------------" << std::endl;
-      std::cout << "Nearest center to origin: (" << edge_centers[nearestIndex].x << ", " << edge_centers[nearestIndex].y << ") with distance " << minDistance << std::endl;
-      std::cout << "Second nearest center to origin: (" << edge_centers[secondNearestIndex].x << ", " << edge_centers[secondNearestIndex].y << ") with distance " << secondMinDistance << std::endl;
-      std::cout << "Garment center: (" << disGarmenCenter << std::endl;
+  //     std::cout << "------------------------------------------------" << std::endl;
+  //     std::cout << "Nearest center to origin: (" << edge_centers[nearestIndex].x << ", " << edge_centers[nearestIndex].y << ") with distance " << minDistance << std::endl;
+  //     std::cout << "Second nearest center to origin: (" << edge_centers[secondNearestIndex].x << ", " << edge_centers[secondNearestIndex].y << ") with distance " << secondMinDistance << std::endl;
+  //     std::cout << "Garment center: (" << disGarmenCenter << std::endl;
 
-      // ---COMPUTE IF THE NEAREST EDGE IS LONG OR SHORT---
-      if(lengths[nearestIndex] < lengths[secondNearestIndex]) 
-      {
-        this->nearest_edge="short";
-        this->second_nearest_edge="long";
-        this->garment_edge_size = this->long_edge_sizes[this->n_obj_pile]; //If nearest edge is short, the not_grasped_edge_size will be the long_edge_size
-        ROS_WARN("PickCrumpledAlgNode: Nearest edge is SHORT");
-      }else{
-        this->nearest_edge="long";
-        this->second_nearest_edge="short";
-        this->garment_edge_size = this->short_edge_sizes[this->n_obj_pile]; //If nearest edge is long, the not_grasped_edge_size will be the short_edge_size
-        ROS_WARN("PickCrumpledAlgNode: Nearest edge is LONG");
-      }
+  //     // ---COMPUTE IF THE NEAREST EDGE IS LONG OR SHORT---
+  //     if(lengths[nearestIndex] < lengths[secondNearestIndex]) 
+  //     {
+  //       this->nearest_edge="short";
+  //       this->second_nearest_edge="long";
+  //       this->garment_edge_size = this->long_edge_sizes[this->n_obj_pile]; //If nearest edge is short, the not_grasped_edge_size will be the long_edge_size
+  //       ROS_WARN("PickCrumpledAlgNode: Nearest edge is SHORT");
+  //     }else{
+  //       this->nearest_edge="long";
+  //       this->second_nearest_edge="short";
+  //       this->garment_edge_size = this->short_edge_sizes[this->n_obj_pile]; //If nearest edge is long, the not_grasped_edge_size will be the short_edge_size
+  //       ROS_WARN("PickCrumpledAlgNode: Nearest edge is LONG");
+  //     }
 
-        // ---COMPUTE THE GRASP ANGLE---
-    // Compute perpendicular angle for the nearest edge
-      double dx = edges[nearestIndex].first.x - edges[nearestIndex].second.x;
-      double dy = edges[nearestIndex].first.y - edges[nearestIndex].second.y;
-      double perpendicularAngle = std::atan2(dx, -dy); //Used to compute pregrasp distances
-      double grasp_angle = std::atan2(dx, dy) * 180 / M_PI; //Used to compute grasp orientation - Angle wrt x-axis of base_link. horizontal edge=0, edge vert=-90, clockwise>0, anticlockwise<0
-      std::cout << "Grasp angle: " << grasp_angle << std::endl;
-      std::cout << "DX: x1= " << edges[nearestIndex].first.x << " - x2= " << edges[nearestIndex].second.x << std::endl;
-      std::cout << "DY: y1= " << edges[nearestIndex].first.y << " - y2= " << edges[nearestIndex].second.y << std::endl;
-      // std::cout << "Grasping perpendicular angle (radians): " << perpendicularAngle << std::endl;
-      // std::cout << "Grasping perpendicular angle (degrees): " << perpendicularAngle * 180.0 / M_PI << std::endl;
-      // std::cout << "N: " << std::atan2(dx, dy) * 180.0 / M_PI << std::endl; //Angle wrt x-axis of base_link. horizontal edge=0, edge vert=-90, clockwise>0, anticlockwise<0
-      // std::cout << "A: " << std::atan2(dx, -dy) * 180.0 / M_PI << std::endl;
-      // std::cout << "B: " << std::atan2(-dx, dy) * 180.0 / M_PI << std::endl;
-      // std::cout << "AA: " << std::atan2(-dy, dx) * 180.0 / M_PI << std::endl;
-      // float cos_alpha = (abs(dy))/(sqrt(pow(dx,2)+pow(dy,2)));
-      // float alpha = acos(cos_alpha);
-      // std::cout << "alpha: " << alpha << std::endl;
-      // double grasp_angle = -std::atan2(-dy, dx);
-      // std::cout << "Grasping angle (radians): " << grasp_angle << std::endl;
-      // std::cout << "Grasping angle (degrees): " << grasp_angle * 180.0 / M_PI << std::endl;
+  //       // ---COMPUTE THE GRASP ANGLE---
+  //   // Compute perpendicular angle for the nearest edge
+  //     double dx = edges[nearestIndex].first.x - edges[nearestIndex].second.x;
+  //     double dy = edges[nearestIndex].first.y - edges[nearestIndex].second.y;
+  //     double perpendicularAngle = std::atan2(dx, -dy); //Used to compute pregrasp distances
+  //     double grasp_angle = std::atan2(dx, dy) * 180 / M_PI; //Used to compute grasp orientation - Angle wrt x-axis of base_link. horizontal edge=0, edge vert=-90, clockwise>0, anticlockwise<0
+  //     std::cout << "Grasp angle: " << grasp_angle << std::endl;
+  //     std::cout << "DX: x1= " << edges[nearestIndex].first.x << " - x2= " << edges[nearestIndex].second.x << std::endl;
+  //     std::cout << "DY: y1= " << edges[nearestIndex].first.y << " - y2= " << edges[nearestIndex].second.y << std::endl;
+  //     // std::cout << "Grasping perpendicular angle (radians): " << perpendicularAngle << std::endl;
+  //     // std::cout << "Grasping perpendicular angle (degrees): " << perpendicularAngle * 180.0 / M_PI << std::endl;
+  //     // std::cout << "N: " << std::atan2(dx, dy) * 180.0 / M_PI << std::endl; //Angle wrt x-axis of base_link. horizontal edge=0, edge vert=-90, clockwise>0, anticlockwise<0
+  //     // std::cout << "A: " << std::atan2(dx, -dy) * 180.0 / M_PI << std::endl;
+  //     // std::cout << "B: " << std::atan2(-dx, dy) * 180.0 / M_PI << std::endl;
+  //     // std::cout << "AA: " << std::atan2(-dy, dx) * 180.0 / M_PI << std::endl;
+  //     // float cos_alpha = (abs(dy))/(sqrt(pow(dx,2)+pow(dy,2)));
+  //     // float alpha = acos(cos_alpha);
+  //     // std::cout << "alpha: " << alpha << std::endl;
+  //     // double grasp_angle = -std::atan2(-dy, dx);
+  //     // std::cout << "Grasping angle (radians): " << grasp_angle << std::endl;
+  //     // std::cout << "Grasping angle (degrees): " << grasp_angle * 180.0 / M_PI << std::endl;
     
-      // Get current grasp position
-      this->compute_grasp_angle(grasp_angle);
-      // std_msgs::Float64 hola;
-      // hola.data = 0;
-      // this->compute_grasp_angle(hola);
+  //     // Get current grasp position
+  //     this->compute_grasp_angle(grasp_angle);
+  //     // std_msgs::Float64 hola;
+  //     // hola.data = 0;
+  //     // this->compute_grasp_angle(hola);
 
-      //---COMPUTE PRE GRASP POINT bsaed on perpendicular angle---
-      this->pre_grasp_center.x = edge_centers[nearestIndex].x + 0.05 * cos(perpendicularAngle);
-      this->pre_grasp_center.y = edge_centers[nearestIndex].y - 0.05 * sin(-perpendicularAngle);
-      this->pre_grasp_distance.x = abs(0.05 * cos(perpendicularAngle));
-      this->pre_grasp_distance.y = 0.05 * sin(-perpendicularAngle);
-      std::cout << "\033[1;36m SECOND GRASP POINT -->  x: " <<  edge_centers[nearestIndex].x << " y: " << edge_centers[nearestIndex].y << "\033[1;0m" <<std::endl;
-      std::cout << "pre grasp dist: (" << this->pre_grasp_distance.x << ", " << this->pre_grasp_distance.y << ")" << std::endl;
-      // std::cout << "pre grasp position: (" << this->pre_grasp_center.x << ", " << this->pre_grasp_center.y << ")" << std::endl;
+  //     //---COMPUTE PRE GRASP POINT bsaed on perpendicular angle---
+  //     this->pre_grasp_center.x = edge_centers[nearestIndex].x + 0.05 * cos(perpendicularAngle);
+  //     this->pre_grasp_center.y = edge_centers[nearestIndex].y - 0.05 * sin(-perpendicularAngle);
+  //     this->pre_grasp_distance.x = abs(0.05 * cos(perpendicularAngle));
+  //     this->pre_grasp_distance.y = 0.05 * sin(-perpendicularAngle);
+  //     std::cout << "\033[1;36m SECOND GRASP POINT -->  x: " <<  edge_centers[nearestIndex].x << " y: " << edge_centers[nearestIndex].y << "\033[1;0m" <<std::endl;
+  //     std::cout << "pre grasp dist: (" << this->pre_grasp_distance.x << ", " << this->pre_grasp_distance.y << ")" << std::endl;
+  //     // std::cout << "pre grasp position: (" << this->pre_grasp_center.x << ", " << this->pre_grasp_center.y << ")" << std::endl;
 
-      // this->pre_grasp_center.x = edge_centers[nearestIndex].x-this->pre_grasp_distance.x;
-      // this->pre_grasp_center.y = edge_centers[nearestIndex].y-this->pre_grasp_distance.y;
-      this->pre_grasp_center.z = this->config_.table_height+0.05;
-      this->grasping_point_garment = this->pre_grasp_center;
+  //     // this->pre_grasp_center.x = edge_centers[nearestIndex].x-this->pre_grasp_distance.x;
+  //     // this->pre_grasp_center.y = edge_centers[nearestIndex].y-this->pre_grasp_distance.y;
+  //     this->pre_grasp_center.z = this->config_.table_height+0.05;
+  //     this->grasping_point_garment = this->pre_grasp_center;
 
-      std::cout << "\033[1;36m GRASP POINT -->  x: " <<  pre_grasp_center.x << " y: " << pre_grasp_center.y << " z: " << pre_grasp_center.z << "\033[1;0m" <<std::endl;
-      std::cout << "\033[1;36m SECOND GRASP POINT -->  x: " <<  edge_centers[secondNearestIndex].x << " y: " << edge_centers[secondNearestIndex].y << "\033[1;0m" <<std::endl;
-      marker.pose.position.x=pre_grasp_center.x;
-      marker.pose.position.y=pre_grasp_center.y;
-      marker.pose.position.z=0.005;// pre_grasp_center.z;
-      grasp_marker_publisher.publish(marker); //Publish grasping point marker - nearest edge center
-      ROS_WARN("test2");
+  //     std::cout << "\033[1;36m GRASP POINT -->  x: " <<  pre_grasp_center.x << " y: " << pre_grasp_center.y << " z: " << pre_grasp_center.z << "\033[1;0m" <<std::endl;
+  //     std::cout << "\033[1;36m SECOND GRASP POINT -->  x: " <<  edge_centers[secondNearestIndex].x << " y: " << edge_centers[secondNearestIndex].y << "\033[1;0m" <<std::endl;
+  //     marker.pose.position.x=pre_grasp_center.x;
+  //     marker.pose.position.y=pre_grasp_center.y;
+  //     marker.pose.position.z=0.005;// pre_grasp_center.z;
+  //     grasp_marker_publisher.publish(marker); //Publish grasping point marker - nearest edge center
+  //     ROS_WARN("test2");
 
-      //--- GET PILE HEIGHT AND OBJECT'S EDGE SIZES ---
-      this->pile_height = 0.0;
-      // this->get_pile_height = true;
-      //this->garment_edge_size = garment_edge.data;
-      this->grasped_edge_size = lengths[nearestIndex];
-      this->not_grasped_edge_size = lengths[secondNearestIndex];
-      std::cout << "\033[1;36m Non grasped edge size --> \033[1;0m " <<  this->garment_edge_size << std::endl;
-      std::cout << "\033[1;36m SENSED Non grasped edge size --> \033[1;0m " <<  lengths[secondNearestIndex] << std::endl;
-      std::cout << "\033[1;36m SENSED Grasped edge size --> \033[1;0m " <<  lengths[nearestIndex] << std::endl;
+  //     //--- GET PILE HEIGHT AND OBJECT'S EDGE SIZES ---
+  //     this->pile_height = 0.0;
+  //     // this->get_pile_height = true;
+  //     //this->garment_edge_size = garment_edge.data;
+  //     this->grasped_edge_size = lengths[nearestIndex];
+  //     this->not_grasped_edge_size = lengths[secondNearestIndex];
+  //     std::cout << "\033[1;36m Non grasped edge size --> \033[1;0m " <<  this->garment_edge_size << std::endl;
+  //     std::cout << "\033[1;36m SENSED Non grasped edge size --> \033[1;0m " <<  lengths[secondNearestIndex] << std::endl;
+  //     std::cout << "\033[1;36m SENSED Grasped edge size --> \033[1;0m " <<  lengths[nearestIndex] << std::endl;
 
-      // --- GET DRAGGING AND ROTATING POSES ---
-      // Dragging pose is inclined orientation over garment
-      // this->dragging_pose_garment = this->pre_grasp_center;
-      this->dragging_pose_garment.x = garment_center.x; // + this->pre_grasp_distance.x;
-      this->dragging_pose_garment.y = garment_center.y; // - 0.05 * sin(-perpendicularAngle);
-      this->dragging_pose_garment.z = 0.10; //0.031
-      this->dragging_pose_garment.theta_x = 125; //0; //this->pre_grasp_center.theta_x;
-      this->dragging_pose_garment.theta_y = -1.6; //0; //-125; //this->pre_grasp_center.theta_x;
-      this->dragging_pose_garment.theta_z = 88.8; //90; //180; //this->pre_grasp_center.theta_x;
+  //     // --- GET DRAGGING AND ROTATING POSES ---
+  //     // Dragging pose is inclined orientation over garment
+  //     // this->dragging_pose_garment = this->pre_grasp_center;
+  //     this->dragging_pose_garment.x = garment_center.x; // + this->pre_grasp_distance.x;
+  //     this->dragging_pose_garment.y = garment_center.y; // - 0.05 * sin(-perpendicularAngle);
+  //     this->dragging_pose_garment.z = 0.10; //0.031
+  //     this->dragging_pose_garment.theta_x = 125; //0; //this->pre_grasp_center.theta_x;
+  //     this->dragging_pose_garment.theta_y = -1.6; //0; //-125; //this->pre_grasp_center.theta_x;
+  //     this->dragging_pose_garment.theta_z = 88.8; //90; //180; //this->pre_grasp_center.theta_x;
 
-      if(edge_centers[nearestIndex].y < edge_centers[secondNearestIndex].y) //If the second nearest edge is further away than nearest corner:
-      {
-        ROS_INFO("nearest < second nearest");
-        std::cout << "nearest " << edge_centers[nearestIndex].y << " second: " << edge_centers[secondNearestIndex].y << std::endl;
-        this->end_dragging_pose = 0.0; //Drag to the right
-      }
-      else
-      {
-        ROS_INFO("nearest > second nearest");
-        std::cout << "nearest " << edge_centers[nearestIndex].y << " second: " << edge_centers[secondNearestIndex].y << std::endl;
-        this->end_dragging_pose = 0.3; // Drag to the left
-      }
+  //     if(edge_centers[nearestIndex].y < edge_centers[secondNearestIndex].y) //If the second nearest edge is further away than nearest corner:
+  //     {
+  //       ROS_INFO("nearest < second nearest");
+  //       std::cout << "nearest " << edge_centers[nearestIndex].y << " second: " << edge_centers[secondNearestIndex].y << std::endl;
+  //       this->end_dragging_pose = 0.0; //Drag to the right
+  //     }
+  //     else
+  //     {
+  //       ROS_INFO("nearest > second nearest");
+  //       std::cout << "nearest " << edge_centers[nearestIndex].y << " second: " << edge_centers[secondNearestIndex].y << std::endl;
+  //       this->end_dragging_pose = 0.3; // Drag to the left
+  //     }
 
-      // Rotating pose is vertical orientation over garment center
-      this->rotating_pose_garment.x = garment_center.x;
-      this->rotating_pose_garment.y = garment_center.y;
-      this->rotating_pose_garment.z = 0.20;
-      this->rotating_pose_garment.theta_x = 179; //-179.4
-      this->rotating_pose_garment.theta_y = 0; //1
-      this->rotating_pose_garment.theta_z = 90; //92.7
-      std::cout << "\033[1;36m ROTATING pose --> x: " << this->rotating_pose_garment.x << " y: " << this->rotating_pose_garment.y << " z: " << this->rotating_pose_garment.z << "\033[1;0m" << std::endl;
+  //     // Rotating pose is vertical orientation over garment center
+  //     this->rotating_pose_garment.x = garment_center.x;
+  //     this->rotating_pose_garment.y = garment_center.y;
+  //     this->rotating_pose_garment.z = 0.20;
+  //     this->rotating_pose_garment.theta_x = 179; //-179.4
+  //     this->rotating_pose_garment.theta_y = 0; //1
+  //     this->rotating_pose_garment.theta_z = 90; //92.7
+  //     std::cout << "\033[1;36m ROTATING pose --> x: " << this->rotating_pose_garment.x << " y: " << this->rotating_pose_garment.y << " z: " << this->rotating_pose_garment.z << "\033[1;0m" << std::endl;
 
-      marker.pose.position.x=edge_centers[secondNearestIndex].x; //garment_center.x;
-      marker.pose.position.y=edge_centers[secondNearestIndex].y; //garment_center.y;
-      marker.pose.position.z=0.01; //garment_center.z;
-      garment_marker_publisher.publish(marker);
-      ROS_WARN("test3");
+  //     marker.pose.position.x=edge_centers[secondNearestIndex].x; //garment_center.x;
+  //     marker.pose.position.y=edge_centers[secondNearestIndex].y; //garment_center.y;
+  //     marker.pose.position.z=0.01; //garment_center.z;
+  //     garment_marker_publisher.publish(marker);
+  //     ROS_WARN("test3");
 
-      // --- VALIDATE GOAL POSE ---
-      ROS_INFO("Check grasp");
-      kortex_driver::Waypoint waypoint;
-      std::cout << "\033[1;36m GRASP pose --> x: " << this->pre_grasp_center.x << " y: " << this->pre_grasp_center.y << " z: " << this->pre_grasp_center.z << "\033[1;0m" << std::endl;
-      std::cout << "\033[1;36m GRASP pose --> x: " << this->pre_grasp_center.theta_x << " y: " << this->pre_grasp_center.theta_y << " z: " << this->pre_grasp_center.theta_z << "\033[1;0m" << std::endl;
-      waypoint = FillCartesianWaypoint(this->pre_grasp_center, 0);
-      bool valid = validate_waypoint(waypoint);
-      if(valid)
-        ROS_WARN("good");
-      ROS_INFO("Check rotate");
-      std::cout << "\033[1;36m DRAGGING pose --> x: " << this->dragging_pose_garment.x << " y: " << this->dragging_pose_garment.y << " z: " << this->dragging_pose_garment.z << "\033[1;0m" << std::endl;
-      std::cout << "\033[1;36m DRAGGING pose --> x: " << this->dragging_pose_garment.theta_x << " y: " << this->dragging_pose_garment.theta_y << " z: " << this->dragging_pose_garment.theta_z << "\033[1;0m" << std::endl;
-      waypoint = FillCartesianWaypoint(this->dragging_pose_garment, 0);
-      valid = validate_waypoint(waypoint);
-      if(valid)
-        ROS_WARN("good");
+  //     // --- VALIDATE GOAL POSE ---
+  //     ROS_INFO("Check grasp");
+  //     kortex_driver::Waypoint waypoint;
+  //     std::cout << "\033[1;36m GRASP pose --> x: " << this->pre_grasp_center.x << " y: " << this->pre_grasp_center.y << " z: " << this->pre_grasp_center.z << "\033[1;0m" << std::endl;
+  //     std::cout << "\033[1;36m GRASP pose --> x: " << this->pre_grasp_center.theta_x << " y: " << this->pre_grasp_center.theta_y << " z: " << this->pre_grasp_center.theta_z << "\033[1;0m" << std::endl;
+  //     waypoint = FillCartesianWaypoint(this->pre_grasp_center, 0);
+  //     bool valid = validate_waypoint(waypoint);
+  //     if(valid)
+  //       ROS_WARN("good");
+  //     ROS_INFO("Check rotate");
+  //     std::cout << "\033[1;36m DRAGGING pose --> x: " << this->dragging_pose_garment.x << " y: " << this->dragging_pose_garment.y << " z: " << this->dragging_pose_garment.z << "\033[1;0m" << std::endl;
+  //     std::cout << "\033[1;36m DRAGGING pose --> x: " << this->dragging_pose_garment.theta_x << " y: " << this->dragging_pose_garment.theta_y << " z: " << this->dragging_pose_garment.theta_z << "\033[1;0m" << std::endl;
+  //     waypoint = FillCartesianWaypoint(this->dragging_pose_garment, 0);
+  //     valid = validate_waypoint(waypoint);
+  //     if(valid)
+  //       ROS_WARN("good");
       
-      config_.select_grasp_point = false;
+  //     config_.select_grasp_point = false;
 
-      if(this->pddl_demo)
-      {
-        if(this->config_.ok)
-        {
-          // --- LOG OBJECT INFO ---
-          this->logfile << "\n---OBJECT STATE INFO---" << std::endl;
-          this->logfile << "Nearest edge size: " << lengths[nearestIndex] << " / Second nearest edge size: " << lengths[secondNearestIndex] << std::endl;
-          this->logfile << "Nearest edge grasp point: (" << edge_centers[nearestIndex].x << ", " << edge_centers[nearestIndex].y << ") with distance " << minDistance << std::endl;
-          this->logfile << "Second nearest edge point: (" << edge_centers[secondNearestIndex].x << ", " << edge_centers[secondNearestIndex].y << ") with distance " << secondMinDistance << std::endl;
-          this->logfile << "Garment center point: (" << garment_center.x << ", " << garment_center.y << ") with distance " << disGarmenCenter << std::endl;
-          this->logfile << "Grasp pose: (" <<  pre_grasp_center.x << ", " << pre_grasp_center.y << ", " << pre_grasp_center.z << ", " << pre_grasp_center.theta_x << ", " << pre_grasp_center.theta_y << ", " << pre_grasp_center.theta_z << ")" << std::endl;
-          this->logfile << "Not grasped edge size: " << this->garment_edge_size << std::endl;
-          this->logfile << "Pile height: " << this->pile_height << std::endl;
-          // UPDATE workspace
-          check_worspaces(disGarmenCenter); //Get workspace based on distance of garment center
-          this->get_garment_position=false;
-          this->state=UPDATE_INIT_ROSPLAN_KB; //Update predicates garment_at (workspace) and at_pose (nearest edge)
-          this->config_.ok=false;
-          this->process_grasp_pointcloud=false;
-        }
-      }
-      else
-      {
-        this->process_grasp_pointcloud=false;
-        this->get_garment_position=false;
-      }
-    }
-  }
+  //     if(this->pddl_demo)
+  //     {
+  //       if(this->config_.ok)
+  //       {
+  //         // --- LOG OBJECT INFO ---
+  //         this->logfile << "\n---OBJECT STATE INFO---" << std::endl;
+  //         this->logfile << "Nearest edge size: " << lengths[nearestIndex] << " / Second nearest edge size: " << lengths[secondNearestIndex] << std::endl;
+  //         this->logfile << "Nearest edge grasp point: (" << edge_centers[nearestIndex].x << ", " << edge_centers[nearestIndex].y << ") with distance " << minDistance << std::endl;
+  //         this->logfile << "Second nearest edge point: (" << edge_centers[secondNearestIndex].x << ", " << edge_centers[secondNearestIndex].y << ") with distance " << secondMinDistance << std::endl;
+  //         this->logfile << "Garment center point: (" << garment_center.x << ", " << garment_center.y << ") with distance " << disGarmenCenter << std::endl;
+  //         this->logfile << "Grasp pose: (" <<  pre_grasp_center.x << ", " << pre_grasp_center.y << ", " << pre_grasp_center.z << ", " << pre_grasp_center.theta_x << ", " << pre_grasp_center.theta_y << ", " << pre_grasp_center.theta_z << ")" << std::endl;
+  //         this->logfile << "Not grasped edge size: " << this->garment_edge_size << std::endl;
+  //         this->logfile << "Pile height: " << this->pile_height << std::endl;
+  //         // UPDATE workspace
+  //         check_worspaces(disGarmenCenter); //Get workspace based on distance of garment center
+  //         this->get_garment_position=false;
+  //         // this->state=UPDATE_INIT_ROSPLAN_KB; //Update predicates garment_at (workspace) and at_pose (nearest edge)
+  //         this->config_.ok=false;
+  //         this->process_grasp_pointcloud=false;
+  //       }
+  //     }
+  //     else
+  //     {
+  //       this->process_grasp_pointcloud=false;
+  //       this->get_garment_position=false;
+  //     }
+  //   }
+  // }
 }
 
 //void PickCrumpledAlgNode::check_worspaces(double garment_center, double grasp_point)
@@ -1173,10 +1272,10 @@ void PickCrumpledAlgNode::compute_grasp_angle(double grasping_angle)
   //}
 }
 
-// Subscribes to topic sending the pile height
-void PickCrumpledAlgNode::pile_height_marker_callback(const visualization_msgs::Marker::ConstPtr& msg)
+// Subscribes to topic sending the highest point and uses it for the top-down grasp 
+void PickCrumpledAlgNode::highest_point_marker_callback(const visualization_msgs::Marker::ConstPtr& msg)
 {
-  if(this->get_garment_position2)
+  if(this->get_highest_point)
   {
     //Get distances to base_link and set corresponding names (down_left, up_right, etc)
     geometry_msgs::PointStamped point_in;
@@ -1189,47 +1288,145 @@ void PickCrumpledAlgNode::pile_height_marker_callback(const visualization_msgs::
 
     this->listener.transformPoint("base_link", point_in, point_out);
 
-    this->grasp_pile_height_point.x = point_out.point.x;
-    this->grasp_pile_height_point.y = point_out.point.y;
-    this->grasp_pile_height_point.z = point_out.point.z;
-    this->grasp_pile_height_point.theta_x = 179;
-    this->grasp_pile_height_point.theta_y = 0;
-    this->grasp_pile_height_point.theta_z = 90;
+    this->grasp_highest_point.x = point_out.point.x;
+    this->grasp_highest_point.y = point_out.point.y;
+    this->grasp_highest_point.z = point_out.point.z;
+    this->grasp_highest_point.theta_x = 179;
+    this->grasp_highest_point.theta_y = 0;
+    this->grasp_highest_point.theta_z = 90;
+    std::cout << "LOWEST POINT: x= " << this->grasp_highest_point.x << " / y= " << this->grasp_highest_point.y << " / z= " << this->grasp_highest_point.z << std::endl;
+    
+    this->marker.pose.position.x = this->grasp_highest_point.x;
+    this->marker.pose.position.y = this->grasp_highest_point.y;
+    this->marker.pose.position.z = this->grasp_highest_point.z;
+    grasp_marker_publisher.publish(this->marker);
 
-    std::cout << "LOWEST POINT: x= " << this->grasp_pile_height_point.x << " / y= " << this->grasp_pile_height_point.y << " / z= " << this->grasp_pile_height_point.z << std::endl;
-    this->get_garment_position2=false;
+    this->top_down_grasp_demo = true; //Start demo
+    this->get_highest_point = false;
   }
 }
 
-void PickCrumpledAlgNode::get_grasp_point(const geometry_msgs::PoseStamped grasp_pose)
+/// Receives 4 points from Carlos' code, transforms them to base_link and selects a grasp point
+void PickCrumpledAlgNode::cloth_corners_callback(const geometry_msgs::PoseArray::ConstPtr& msg)
 {
-  // geometry_msgs::PoseStamped grasp_pose;
-  // kortex_driver::Pose grasp_pile_height_point;
-
-  visualization_msgs::Marker marker;
-  marker.header.frame_id = "base_link";
-  marker.id = 0;
-  marker.type = visualization_msgs::Marker::SPHERE;
-  marker.scale.x=0.01;
-  marker.scale.y=0.01;
-  marker.scale.z=0.01;
-  marker.color.r = 0.0f;
-  marker.color.g = 1.0f;
-  marker.color.b = 1.0f;
-  marker.color.a = 1.0;
-  marker.lifetime = ros::Duration();
-
-  if(this->get_test_grasp_point)
-  {
-    // this->pre_grasp_center
-    marker.pose.position.x = this->pre_grasp_center.x;
-    marker.pose.position.y = this->pre_grasp_center.y;
-    marker.pose.position.z = this->pre_grasp_center.z;
-    garment_marker_publisher.publish(marker);
-  }
   
+  //Get corners wrt base_link and set corresponding names (down_left, down_right, up_left, up_right)
+  geometry_msgs::PointStamped point_in;
+  geometry_msgs::PointStamped point_out;
+  std::vector<geometry_msgs::PointStamped> points;
+  visualization_msgs::MarkerArray corners_marker_array;
+  visualization_msgs::Marker marker;
+
+  for(int i=0; i<msg->poses.size(); i++)
+  {
+    // Transform point to robot base_link reference frame
+    point_in.header.frame_id = msg->header.frame_id; //camera_depth_optical_frames
+    point_in.header.stamp = ros::Time(0); //msg->header.stamp;
+    // point_in.header = msg->header; //copy frame_id and stamp
+    point_in.point = msg->poses[i].position;
+
+    this->listener.transformPoint("base_link", point_in, point_out);
+    points.push_back(point_out);
+
+    //Publish points as markers
+    marker.header = msg->header; // Copy frame and timestamp information
+    marker.ns = "corner_markers"; // Set unique namespace and ID for each marker
+    marker.id = i;
+    marker.type = visualization_msgs::Marker::SPHERE; //ARROW; // Select marker type (e.g., ARROW, SPHERE, CUBE)
+    marker.action = visualization_msgs::Marker::ADD;
+    
+    marker.pose = msg->poses[i]; // Direct link: assign pose directly from PoseArray to Marker
+    
+    // Set scale (Must be non-zero to be visible in RViz)
+    marker.scale.x = 0.03; // Arrow length
+    marker.scale.y = 0.03; // Arrow width
+    marker.scale.z = 0.03; // Arrow height
+    // Set color (Must set alpha to 1.0 so it is not invisible)
+    marker.color.r = 1.0;
+    marker.color.g = 0.0;
+    marker.color.b = 0.0;
+    marker.color.a = 1.0; 
+    
+    // Add the populated marker to the array
+    corners_marker_array.markers.push_back(marker);
+    corners_markers_publisher.publish(corners_marker_array);
+    corners_marker_array.markers.clear();
+  }
+
+  //SELECT GRASPING POSITION
+  if(this->get_folding_grasp_point)
+  {
+    std::cout << "\033[1;36m 0BOTTOM-LEFT -> \033[1;36m  x: " << points[0].point.x << ", y: " << points[0].point.y << ", z: " << points[0].point.z << std::endl;
+    std::cout << "\033[1;36m 1TOP-LEFT -> \033[1;36m  x: " << points[1].point.x << ", y: " << points[1].point.y << ", z: " << points[1].point.z << std::endl;
+    std::cout << "\033[1;36m 2BOTTOM-RIGHT -> \033[1;36m  x: " << points[2].point.x << ", y: " << points[2].point.y << ", z: " << points[2].point.z << std::endl;
+    std::cout << "\033[1;36m 3TOP-RIGHT -> \033[1;36m  x: " << points[3].point.x << ", y: " << points[3].point.y << ", z: " << points[3].point.z << std::endl;
+
+    // this->pre_grasp_folding_point = ?
+    this->grasp_folding_point.x = points[config_.grasp_corner_id].point.x -0.05;
+    this->grasp_folding_point.y = points[config_.grasp_corner_id].point.y;
+    this->grasp_folding_point.z = 0.07; //points[0].point.z;
+    this->grasp_folding_point.theta_x = 0; //-178;
+    this->grasp_folding_point.theta_y = -125; //-50;
+    this->grasp_folding_point.theta_z = 179; //130;
+    
+    //PLOT GRASP POINT AS MARKET
+    // this->marker.pose.position. = this->grasp_folding_point;
+    this->marker.pose.position.x = this->grasp_folding_point.x;
+    this->marker.pose.position.y = this->grasp_folding_point.y;
+    this->marker.pose.position.z = this->grasp_folding_point.z;
+    grasp_marker_publisher.publish(this->marker);
+
+    corners_markers_publisher.publish(corners_marker_array);
+    corners_marker_array.markers.clear();
+
+    /// SELECT PLACING POSITION
+    this->place_folding_point.x = points[config_.place_corner_id].point.x-0.03;
+    this->place_folding_point.y = points[config_.place_corner_id].point.y;
+    this->place_folding_point.z = 0.1; 
+    this->place_folding_point.theta_x = 0; 
+    this->place_folding_point.theta_y = -125; 
+    this->place_folding_point.theta_z = 179; 
+
+
+    // if(config_.ok)
+    // {
+    this->folding_demo = true; //START FOLDING DEMO
+      // config_.ok = false;
+    // }
+    this->get_folding_grasp_point = false;
+  }
 
 }
+
+// void PickCrumpledAlgNode::get_cloth_corners(const geometry_msgs::PoseStamped cloth_corners)
+// {
+//   // geometry_msgs::PoseStamped grasp_pose;
+//   // kortex_driver::Pose grasp_pile_height_point;
+
+//   visualization_msgs::Marker marker;
+//   marker.header.frame_id = "base_link";
+//   marker.id = 0;
+//   marker.type = visualization_msgs::Marker::SPHERE;
+//   marker.scale.x=0.01;
+//   marker.scale.y=0.01;
+//   marker.scale.z=0.01;
+//   marker.color.r = 0.0f;
+//   marker.color.g = 1.0f;
+//   marker.color.b = 1.0f;
+//   marker.color.a = 1.0;
+//   marker.lifetime = ros::Duration();
+
+//   if(this->get_folding_grasp_point)
+//   {
+//     // this->pre_grasp_center
+//     marker.pose.position.x = this->pre_grasp_center.x;
+//     marker.pose.position.y = this->pre_grasp_center.y;
+//     marker.pose.position.z = this->pre_grasp_center.z;
+//     grasp_marker_publisher.publish(marker);
+//   }
+// }
+
+
 //------------------------------------------------------------------------------------
 /*  [subscriber callbacks] */
 void PickCrumpledAlgNode::base_feedback_callback(const kortex_driver::BaseCyclic_Feedback::ConstPtr& msg)

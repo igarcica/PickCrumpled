@@ -1,0 +1,12 @@
+
+
+GIT
+
+Started implementation of folding demo and First tests with Carlos' code
+
+- Receives corners in /cloth_corners and cloth pointcloud in /cloth_mesh
+- The grasp and place corners can be selected in the reconfigure (grasp_corner_id and place_corner_id)
+- The demo starts with boolean folding_demo: It goes to the grasp corner, grasps it and then goes to the place corner
+
+- Created a TF frame camera_depth_optical_frame as child of base_link
+
